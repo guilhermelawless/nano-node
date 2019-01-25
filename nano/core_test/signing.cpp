@@ -116,24 +116,3 @@ TEST (signature_checker, multi_add_100k)
 		promise.get_future ().wait();
 	}
 }
-
-TEST (sanity, thread_pool)
-{
-	boost::asio::thread_pool thread_pool (4);
-	std::vector<bool> v(4, false);
-	for (int i=0; i<=1; ++i)
-		boost::asio::post (thread_pool, [i, &v] { v[i] = true; });
-
-	thread_pool.join ();
-
-	for (int i=2; i<=3; ++i)
-		boost::asio::post (thread_pool, [i, &v] { v[i] = true; });
-
-	thread_pool.join ();
-
-	ASSERT_EQ (4, v.size ());
-	ASSERT_EQ (true, v[0]);
-	ASSERT_EQ (true, v[1]);
-	ASSERT_EQ (true, v[2]);
-	ASSERT_EQ (true, v[3]);
-}
