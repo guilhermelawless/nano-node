@@ -1099,6 +1099,7 @@ bool nano::rep_crawler::exists (nano::block_hash const & hash_a)
 }
 
 nano::signature_checker::signature_checker () :
+thread_pool(std::thread::hardware_concurrency()),
 started (false),
 stopped (false),
 thread ([this]() { run (); })
@@ -1145,13 +1146,55 @@ void nano::signature_checker::flush ()
 	}
 }
 
+bool nano::signature_checker::verify_batch (const nano::signature_check_set & check_a, unsigned index, unsigned size)
+{
+	/* Verifications is vector if signatures check results validate_message_batch
+		 returing "true" if there are at least 1 invalid signature */
+	auto code (nano::validate_message_batch (check_a.messages, check_a.message_lengths, check_a.pub_keys, check_a.signatures, size, check_a.verifications + index));
+	(void)code;
+
+	return std::all_of (check_a.verifications + index, check_a.verifications + index + size, [](int verification) { return verification == 0 || verification == 1; });
+}
+
+void nano::signature_checker::verify_threaded (nano::signature_check_set & check_a)
+{
+	std::vector<bool> results;
+	unsigned int batch_size = 256;
+	unsigned int overflow = check_a.size % batch_size;
+	unsigned int batches = check_a.size / batch_size;
+
+	// Add an additonal batch that will contain the remainder verifications
+	for (unsigned int batch = 0; batch < batches + 1; ++batch)
+	{
+		int size = batch_size - 1;
+		int index = batch * batch_size;
+
+		// Clamp it to the max number of verifications
+		if (index + batch_size > check_a.size)
+			size = overflow;
+
+		boost::asio::post (thread_pool, [=, &results]	{
+			bool result = verify_batch (check_a, index, size);
+
+			std::lock_guard<std::mutex> lock (results_mutex);
+			results.push_back (result);
+		});
+	}
+
+	// Waiting for thread pool to finish all outstanding work
+	thread_pool.join ();
+
+	release_assert (std::all_of (results.begin (), results.end (),
+	[](auto result) { return result; }));
+}
+
 void nano::signature_checker::verify (nano::signature_check_set & check_a)
 {
-	/* Verifications is vector if signatures check results
-	 validate_message_batch returing "true" if there are at least 1 invalid signature */
-	auto code (nano::validate_message_batch (check_a.messages, check_a.message_lengths, check_a.pub_keys, check_a.signatures, check_a.size, check_a.verifications));
-	(void)code;
-	release_assert (std::all_of (check_a.verifications, check_a.verifications + check_a.size, [](int verification) { return verification == 0 || verification == 1; }));
+	if (check_a.size <= 10000)
+		release_assert (verify_batch (check_a, 0, check_a.size));
+	else
+		verify_threaded (check_a);
+
 	check_a.promise->set_value ();
 }
 

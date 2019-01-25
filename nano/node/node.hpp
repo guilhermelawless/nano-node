@@ -20,6 +20,7 @@
 #include <boost/multi_index/random_access_index.hpp>
 #include <boost/multi_index_container.hpp>
 #include <boost/thread/thread.hpp>
+#include <boost/asio/thread_pool.hpp>
 
 namespace nano
 {
@@ -402,7 +403,11 @@ public:
 private:
 	void run ();
 	void verify (nano::signature_check_set & check_a);
+	bool verify_batch (const nano::signature_check_set & check_a, unsigned index, unsigned size);
+	void verify_threaded (nano::signature_check_set & check_a);
 	std::deque<nano::signature_check_set> checks;
+	std::mutex results_mutex;
+	boost::asio::thread_pool thread_pool;
 	bool started;
 	bool stopped;
 	std::mutex mutex;
