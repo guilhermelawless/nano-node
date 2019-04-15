@@ -1127,7 +1127,6 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 	else if (vm.count ("timestamps_update_frontiers") == 1)
 	{
 		boost::filesystem::path data_path = vm.count ("data_path") ? boost::filesystem::path (vm["data_path"].as<std::string> ()) : nano::working_path ();
-		auto timestamps_path = data_path / "timestamps.csv";
 
 		std::cout << "Updating account information..." << std::endl;
 
