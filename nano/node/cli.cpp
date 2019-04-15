@@ -60,6 +60,7 @@ void nano::add_node_options (boost::program_options::options_description & descr
 	("vote_dump", "Dump most recent votes from representatives")
 	("timestamps_import", "Imports a CSV file, overwriting the timestamps recorded in the database (warning: high resource usage).")
 	("timestamps_export", "Writes a CSV file with the local timestamp recorded for each hash with timestamp in the database.")
+	("timestamps_update_frontiers", "Updates the 'modified' timestamp of each account chain with the stamps of each frontier")
 	("account", boost::program_options::value<std::string> (), "Defines <account> for other commands")
 	("file", boost::program_options::value<std::string> (), "Defines <file> for other commands")
 	("key", boost::program_options::value<std::string> (), "Defines the <key> for other commands, hex")
@@ -1121,6 +1122,24 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 		else
 		{
 			std::cout << "Empty database" << std::endl;
+		}
+	}
+	else if (vm.count ("timestamps_update_frontiers") == 1)
+	{
+		boost::filesystem::path data_path = vm.count ("data_path") ? boost::filesystem::path (vm["data_path"].as<std::string> ()) : nano::working_path ();
+		auto timestamps_path = data_path / "timestamps.csv";
+
+		std::cout << "Updating account information..." << std::endl;
+
+		inactive_node node (data_path);
+		auto transaction (node.node->store.tx_begin_write ());
+
+		for (auto i (node.node->store.latest_begin (transaction)), n (node.node->store.latest_end ()); i != n; ++i)
+		{
+			nano::block_sideband sideband;
+			auto block (node.node->store.block_get (transaction, i->second.head, &sideband));
+			i->second.modified = sideband.timestamp;
+			node.node->store.account_put (transaction, i->first, i->second);
 		}
 	}
 	else
