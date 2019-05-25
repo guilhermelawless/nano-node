@@ -53,6 +53,16 @@ void nano::vote_generator::send (std::unique_lock<std::mutex> & lock_a)
 			auto vote (this->node.store.vote_generate (transaction, pub_a, prv_a, hashes_l));
 			this->node.vote_processor.vote (vote, std::make_shared<nano::transport::channel_udp> (this->node.network.udp_channels, this->node.network.endpoint ()));
 			this->node.votes_cache.add (vote);
+
+			if (this->node.websocket_server)
+			{
+				if (this->node.websocket_server->any_subscribers (nano::websocket::topic::vote))
+				{
+					nano::websocket::message_builder builder;
+					auto msg (builder.vote_received (vote));
+					this->node.websocket_server->broadcast (msg);
+				}
+			}
 		});
 	}
 	lock_a.lock ();
