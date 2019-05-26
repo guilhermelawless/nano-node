@@ -78,27 +78,29 @@ void nano::vote_generator::run ()
 	lock.unlock ();
 	condition.notify_all ();
 	lock.lock ();
-	auto min (std::numeric_limits<std::chrono::steady_clock::time_point>::min ());
-	auto cutoff (min);
+	size_t prev_hashes_size{ 0 };
+	auto cutoff (std::chrono::steady_clock::now ());
 	while (!stopped)
 	{
 		auto now (std::chrono::steady_clock::now ());
 		if (hashes.size () >= 12)
 		{
+			prev_hashes_size = 0;
 			send (lock);
-		}
-		else if (cutoff == min) // && hashes.size () < 12
-		{
-			cutoff = now + std::chrono::milliseconds (50);
-			condition.wait_until (lock, cutoff);
 		}
 		else if (now < cutoff) // && hashes.size () < 12
 		{
 			condition.wait_until (lock, cutoff);
 		}
-		else // now >= cutoff && hashes.size () < 12
+		else if (hashes.size () > prev_hashes_size) // && now >= cutoff && hashes.size () < 12
 		{
-			cutoff = min;
+			prev_hashes_size = hashes.size ();
+			cutoff = now + std::chrono::milliseconds (50);
+			condition.wait_until (lock, cutoff);
+		}
+		else // hashes.size () > prev_hashes_size && now >= cutoff && hashes.size () < 12
+		{
+			prev_hashes_size = 0;
 			if (!hashes.empty ())
 			{
 				send (lock);
