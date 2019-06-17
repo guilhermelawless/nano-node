@@ -64,6 +64,11 @@ void nano::vote_generator::send (std::unique_lock<std::mutex> & lock_a)
 
 void nano::vote_generator::run ()
 {
+	using namespace std::chrono_literals;
+	const auto delay_min (25ms);
+	const auto delay_max (1000ms);
+	const auto delay_increment (25ms);
+	auto delay (delay_min);
 	nano::thread_role::set (nano::thread_role::name::voting);
 	std::unique_lock<std::mutex> lock (mutex);
 	started = true;
@@ -78,7 +83,22 @@ void nano::vote_generator::run ()
 		}
 		else
 		{
-			condition.wait_for (lock, node.config.vote_generator_delay, [this] { return this->hashes.size () >= 12; });
+			if (condition.wait_for (lock, node.config.vote_generator_delay, [this] { return this->hashes.size () >= 12; }))
+			{
+				// hashes.size () >= 12, decrease delay
+				delay -= delay_increment;
+			}
+			else if (hashes.size () < 3)
+			{
+				// low load, decrease delay to be responsive
+				delay -= delay_increment;
+			}
+			else
+			{
+				// 3 < hashes.size () < 12, high load - increase delay to receive more hashes next time
+				delay += delay_increment;
+			}
+			delay = std::max (std::min (delay, delay_max), delay_min);
 		}
 	}
 }
