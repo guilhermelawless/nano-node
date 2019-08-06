@@ -2421,16 +2421,18 @@ TEST (node, vote_by_hash_bundle)
 	});
 
 	nano::genesis genesis;
+	std::vector<std::shared_ptr<nano::block>> blocks;
 	for (int i = 1; i <= 200; i++)
 	{
-		auto send (std::make_shared<nano::send_block> (genesis.hash (), key1.pub, std::numeric_limits<nano::uint128_t>::max () - (system.nodes[0]->config.receive_minimum.number () * i), nano::test_genesis_key.prv, nano::test_genesis_key.pub, system.work.generate (genesis.hash ())));
-		system.nodes[0]->block_confirm (send);
+		blocks.emplace_back (std::make_shared<nano::send_block> (genesis.hash (), key1.pub, std::numeric_limits<nano::uint128_t>::max () - (system.nodes[0]->config.receive_minimum.number () * i), nano::test_genesis_key.prv, nano::test_genesis_key.pub, system.work.generate (genesis.hash ())));
+	}
+	for (auto & block : blocks)
+	{
+		system.nodes[0]->block_confirm (block);
 	}
 
-	// Verify that bundling occurs. While reaching 12 should be common on most hardware in release mode,
-	// we set this low enough to allow the test to pass on CI/with santitizers.
 	system.deadline_set (20s);
-	while (max_hashes.load () < 3)
+	while (max_hashes.load () < 12)
 	{
 		ASSERT_NO_ERROR (system.poll ());
 	}
