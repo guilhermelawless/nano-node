@@ -1273,38 +1273,43 @@ public:
 };
 }
 
-void nano::node::work_generate_blocking (nano::block & block_a)
+bool nano::node::work_generate_blocking (nano::block & block_a)
 {
-	work_generate_blocking (block_a, network_params.network.publish_threshold);
+	return work_generate_blocking (block_a, network_params.network.publish_threshold);
 }
 
-void nano::node::work_generate_blocking (nano::block & block_a, uint64_t difficulty_a)
+bool nano::node::work_generate_blocking (nano::block & block_a, uint64_t difficulty_a)
 {
-	block_a.block_work_set (work_generate_blocking (block_a.root (), difficulty_a));
+	auto work (work_generate_blocking (block_a.root (), difficulty_a));
+	if (work.is_initialized ())
+	{
+		block_a.block_work_set (*work);
+	}
+	return !work.is_initialized ();
 }
 
-void nano::node::work_generate (nano::uint256_union const & hash_a, std::function<void(uint64_t)> callback_a)
+void nano::node::work_generate (nano::uint256_union const & hash_a, std::function<void(boost::optional<uint64_t>)> callback_a)
 {
 	work_generate (hash_a, callback_a, network_params.network.publish_threshold);
 }
 
-void nano::node::work_generate (nano::uint256_union const & hash_a, std::function<void(uint64_t)> callback_a, uint64_t difficulty_a)
+void nano::node::work_generate (nano::uint256_union const & hash_a, std::function<void(boost::optional<uint64_t>)> callback_a, uint64_t difficulty_a)
 {
 	auto work_generation (std::make_shared<distributed_work> (shared (), hash_a, callback_a, difficulty_a));
 	work_generation->start ();
 }
 
-uint64_t nano::node::work_generate_blocking (nano::uint256_union const & block_a)
+boost::optional<uint64_t> nano::node::work_generate_blocking (nano::uint256_union const & block_a)
 {
 	return work_generate_blocking (block_a, network_params.network.publish_threshold);
 }
 
-uint64_t nano::node::work_generate_blocking (nano::uint256_union const & hash_a, uint64_t difficulty_a)
+boost::optional<uint64_t> nano::node::work_generate_blocking (nano::uint256_union const & hash_a, uint64_t difficulty_a)
 {
-	std::promise<uint64_t> promise;
-	std::future<uint64_t> future = promise.get_future ();
+	std::promise<boost::optional<uint64_t>> promise;
+	std::future<boost::optional<uint64_t>> future = promise.get_future ();
 	// clang-format off
-	work_generate (hash_a, [&promise](uint64_t work_a) {
+	work_generate (hash_a, [&promise](boost::optional<uint64_t> work_a) {
 		promise.set_value (work_a);
 	},
 	difficulty_a);

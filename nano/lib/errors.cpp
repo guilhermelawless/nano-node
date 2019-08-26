@@ -192,6 +192,8 @@ std::string nano::error_rpc_messages::message (int ev) const
 			return "Signing by block hash is disabled";
 		case nano::error_rpc::source_not_found:
 			return "Source not found";
+		case nano::error_rpc::work_generation_error:
+			return "Work generation failed";
 	}
 
 	return "Invalid error code";

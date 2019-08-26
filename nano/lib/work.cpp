@@ -208,12 +208,12 @@ void nano::work_pool::generate (nano::uint256_union const & hash_a, std::functio
 	producer_condition.notify_all ();
 }
 
-uint64_t nano::work_pool::generate (nano::uint256_union const & hash_a)
+boost::optional<uint64_t> nano::work_pool::generate (nano::uint256_union const & hash_a)
 {
 	return generate (hash_a, network_constants.publish_threshold);
 }
 
-uint64_t nano::work_pool::generate (nano::uint256_union const & hash_a, uint64_t difficulty_a)
+boost::optional<uint64_t> nano::work_pool::generate (nano::uint256_union const & hash_a, uint64_t difficulty_a)
 {
 	std::promise<boost::optional<uint64_t>> work;
 	std::future<boost::optional<uint64_t>> future = work.get_future ();
@@ -223,8 +223,7 @@ uint64_t nano::work_pool::generate (nano::uint256_union const & hash_a, uint64_t
 	},
 	difficulty_a);
 	// clang-format on
-	auto result (future.get ());
-	return result.value ();
+	return future.get ();
 }
 
 namespace nano

@@ -221,7 +221,7 @@ int main (int argc, char * const * argv)
 						          << "Account: " << rep.pub.to_account () << "\n";
 					}
 					nano::uint128_t balance (std::numeric_limits<nano::uint128_t>::max ());
-					nano::open_block genesis_block (genesis.pub, genesis.pub, genesis.pub, genesis.prv, genesis.pub, work.generate (genesis.pub));
+					nano::open_block genesis_block (genesis.pub, genesis.pub, genesis.pub, genesis.prv, genesis.pub, *work.generate (genesis.pub));
 					std::cout << genesis_block.to_json ();
 					std::cout.flush ();
 					nano::block_hash previous (genesis_block.hash ());
@@ -233,7 +233,7 @@ int main (int argc, char * const * argv)
 						{
 							assert (balance > weekly_distribution);
 							balance = balance < (weekly_distribution * 2) ? 0 : balance - weekly_distribution;
-							nano::send_block send (previous, landing.pub, balance, genesis.prv, genesis.pub, work.generate (previous));
+							nano::send_block send (previous, landing.pub, balance, genesis.prv, genesis.pub, *work.generate (previous));
 							previous = send.hash ();
 							std::cout << send.to_json ();
 							std::cout.flush ();
@@ -361,7 +361,7 @@ int main (int argc, char * const * argv)
 			{
 				block.hashables.previous.qwords[0] += 1;
 				auto begin1 (std::chrono::high_resolution_clock::now ());
-				block.block_work_set (work.generate (block.root ()));
+				block.block_work_set (*work.generate (block.root ()));
 				auto end1 (std::chrono::high_resolution_clock::now ());
 				std::cerr << boost::str (boost::format ("%|1$ 12d|\n") % std::chrono::duration_cast<std::chrono::microseconds> (end1 - begin1).count ());
 			}
@@ -450,7 +450,7 @@ int main (int argc, char * const * argv)
 							{
 								block.hashables.previous.qwords[0] += 1;
 								auto begin1 (std::chrono::high_resolution_clock::now ());
-								block.block_work_set (work_pool.generate (block.root (), difficulty));
+								block.block_work_set (*work_pool.generate (block.root (), difficulty));
 								auto end1 (std::chrono::high_resolution_clock::now ());
 								std::cerr << boost::str (boost::format ("%|1$ 12d|\n") % std::chrono::duration_cast<std::chrono::microseconds> (end1 - begin1).count ());
 							}
@@ -590,7 +590,7 @@ int main (int argc, char * const * argv)
 				            .balance (genesis_balance)
 				            .link (keys[i].pub)
 				            .sign (keys[i].prv, keys[i].pub)
-				            .work (work.generate (genesis_latest))
+				            .work (*work.generate (genesis_latest))
 				            .build ();
 
 				genesis_latest = send->hash ();
@@ -603,7 +603,7 @@ int main (int argc, char * const * argv)
 				            .balance (balances[i])
 				            .link (genesis_latest)
 				            .sign (test_params.ledger.test_genesis_key.prv, test_params.ledger.test_genesis_key.pub)
-				            .work (work.generate (keys[i].pub))
+				            .work (*work.generate (keys[i].pub))
 				            .build ();
 
 				frontiers[i] = open->hash ();
@@ -624,7 +624,7 @@ int main (int argc, char * const * argv)
 					            .balance (balances[j])
 					            .link (keys[other].pub)
 					            .sign (keys[j].prv, keys[j].pub)
-					            .work (work.generate (frontiers[j]))
+					            .work (*work.generate (frontiers[j]))
 					            .build ();
 
 					frontiers[j] = send->hash ();
@@ -639,7 +639,7 @@ int main (int argc, char * const * argv)
 					               .balance (balances[other])
 					               .link (frontiers[j])
 					               .sign (keys[other].prv, keys[other].pub)
-					               .work (work.generate (frontiers[other]))
+					               .work (*work.generate (frontiers[other]))
 					               .build ();
 
 					frontiers[other] = receive->hash ();
@@ -700,7 +700,7 @@ int main (int argc, char * const * argv)
 				            .balance (genesis_balance)
 				            .link (keys[i].pub)
 				            .sign (test_params.ledger.test_genesis_key.prv, test_params.ledger.test_genesis_key.pub)
-				            .work (work.generate (genesis_latest))
+				            .work (*work.generate (genesis_latest))
 				            .build ();
 
 				genesis_latest = send->hash ();
@@ -713,7 +713,7 @@ int main (int argc, char * const * argv)
 				            .balance (balance)
 				            .link (genesis_latest)
 				            .sign (keys[i].prv, keys[i].pub)
-				            .work (work.generate (keys[i].pub))
+				            .work (*work.generate (keys[i].pub))
 				            .build ();
 
 				node->ledger.process (transaction, *open);
@@ -732,7 +732,7 @@ int main (int argc, char * const * argv)
 				            .balance (genesis_balance)
 				            .link (destination.pub)
 				            .sign (test_params.ledger.test_genesis_key.prv, test_params.ledger.test_genesis_key.pub)
-				            .work (work.generate (genesis_latest))
+				            .work (*work.generate (genesis_latest))
 				            .build ();
 
 				genesis_latest = send->hash ();

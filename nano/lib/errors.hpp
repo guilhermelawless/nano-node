@@ -108,7 +108,8 @@ enum class error_rpc
 	payment_unable_create_account,
 	rpc_control_disabled,
 	sign_hash_disabled,
-	source_not_found
+	source_not_found,
+	work_generation_error
 };
 
 /** process_result related errors */

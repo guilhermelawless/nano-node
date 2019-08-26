@@ -1375,20 +1375,27 @@ void nano::wallet::work_cache_blocking (nano::account const & account_a, nano::b
 {
 	auto begin (std::chrono::steady_clock::now ());
 	auto work (wallets.node.work_generate_blocking (root_a));
-	if (wallets.node.config.logging.work_generation_time ())
+	if (work.is_initialized ())
 	{
-		/*
+		if (wallets.node.config.logging.work_generation_time ())
+		{
+			/*
 		 * The difficulty parameter is the second parameter for `work_generate_blocking()`,
 		 * currently we don't supply one so we must fetch the default value.
 		 */
-		auto difficulty (wallets.node.network_params.network.publish_threshold);
+			auto difficulty (wallets.node.network_params.network.publish_threshold);
 
-		wallets.node.logger.try_log ("Work generation for ", root_a.to_string (), ", with a difficulty of ", difficulty, " complete: ", (std::chrono::duration_cast<std::chrono::microseconds> (std::chrono::steady_clock::now () - begin).count ()), " us");
+			wallets.node.logger.try_log ("Work generation for ", root_a.to_string (), ", with a difficulty of ", difficulty, " complete: ", (std::chrono::duration_cast<std::chrono::microseconds> (std::chrono::steady_clock::now () - begin).count ()), " us");
+		}
+		auto transaction (wallets.tx_begin_write ());
+		if (live () && store.exists (transaction, account_a))
+		{
+			work_update (transaction, account_a, root_a, *work);
+		}
 	}
-	auto transaction (wallets.tx_begin_write ());
-	if (live () && store.exists (transaction, account_a))
+	else
 	{
-		work_update (transaction, account_a, root_a, work);
+		wallets.node.logger.try_log ("Work generation for ", root_a.to_string (), " failed");
 	}
 }
 
@@ -1479,37 +1486,41 @@ void nano::work_watcher::run ()
 				std::error_code ec;
 				builder.from (*i.second);
 				lock.unlock ();
-				builder.work (node.work_generate_blocking (root, active_difficulty));
-				std::shared_ptr<state_block> block (builder.build (ec));
-				if (!ec)
+				auto work (node.work_generate_blocking (root, active_difficulty));
+				if (work.is_initialized ())
 				{
+					builder.work (*work);
+					std::shared_ptr<state_block> block (builder.build (ec));
+					if (!ec)
 					{
-						std::lock_guard<std::mutex> active_lock (node.active.mutex);
-						auto existing (node.active.roots.find (qualified_root));
-						if (existing != node.active.roots.end ())
 						{
-							auto election (existing->election);
-							if (election->status.winner->hash () == hash)
+							std::lock_guard<std::mutex> active_lock (node.active.mutex);
+							auto existing (node.active.roots.find (qualified_root));
+							if (existing != node.active.roots.end ())
 							{
-								election->status.winner = block;
+								auto election (existing->election);
+								if (election->status.winner->hash () == hash)
+								{
+									election->status.winner = block;
+								}
+								auto current (election->blocks.find (hash));
+								assert (current != election->blocks.end ());
+								current->second = block;
 							}
-							auto current (election->blocks.find (hash));
-							assert (current != election->blocks.end ());
-							current->second = block;
 						}
+						node.network.flood_block (block, false);
+						node.active.update_difficulty (*block.get ());
+						lock.lock ();
+						if (stopped)
+						{
+							break;
+						}
+						if (i.second != nullptr)
+						{
+							i.second = block;
+						}
+						lock.unlock ();
 					}
-					node.network.flood_block (block, false);
-					node.active.update_difficulty (*block.get ());
-					lock.lock ();
-					if (stopped)
-					{
-						break;
-					}
-					if (i.second != nullptr)
-					{
-						i.second = block;
-					}
-					lock.unlock ();
 				}
 				lock.lock ();
 				if (stopped)

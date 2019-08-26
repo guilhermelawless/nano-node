@@ -1382,22 +1382,33 @@ void nano::json_handler::block_create ()
 					{
 						if (work == 0)
 						{
-							work = node.work_generate_blocking (previous.is_zero () ? pub : previous);
+							auto opt_work (node.work_generate_blocking (previous.is_zero () ? pub : previous));
+							if (opt_work.is_initialized ())
+							{
+								work = *opt_work;
+							}
+							else
+							{
+								ec = nano::error_rpc::work_generation_error;
+							}
 						}
-						nano::state_block state (pub, previous, representative, balance, link, prv, pub, work);
-						response_l.put ("hash", state.hash ().to_string ());
-						bool json_block_l = request.get<bool> ("json_block", false);
-						if (json_block_l)
+						if (!ec)
 						{
-							boost::property_tree::ptree block_node_l;
-							state.serialize_json (block_node_l);
-							response_l.add_child ("block", block_node_l);
-						}
-						else
-						{
-							std::string contents;
-							state.serialize_json (contents);
-							response_l.put ("block", contents);
+							nano::state_block state (pub, previous, representative, balance, link, prv, pub, work);
+							response_l.put ("hash", state.hash ().to_string ());
+							bool json_block_l = request.get<bool> ("json_block", false);
+							if (json_block_l)
+							{
+								boost::property_tree::ptree block_node_l;
+								state.serialize_json (block_node_l);
+								response_l.add_child ("block", block_node_l);
+							}
+							else
+							{
+								std::string contents;
+								state.serialize_json (contents);
+								response_l.put ("block", contents);
+							}
 						}
 					}
 					else
@@ -1411,13 +1422,24 @@ void nano::json_handler::block_create ()
 					{
 						if (work == 0)
 						{
-							work = node.work_generate_blocking (pub);
+							auto opt_work (node.work_generate_blocking (pub));
+							if (opt_work.is_initialized ())
+							{
+								work = *opt_work;
+							}
+							else
+							{
+								ec = nano::error_rpc::work_generation_error;
+							}
 						}
-						nano::open_block open (source, representative, pub, prv, pub, work);
-						response_l.put ("hash", open.hash ().to_string ());
-						std::string contents;
-						open.serialize_json (contents);
-						response_l.put ("block", contents);
+						if (!ec)
+						{
+							nano::open_block open (source, representative, pub, prv, pub, work);
+							response_l.put ("hash", open.hash ().to_string ());
+							std::string contents;
+							open.serialize_json (contents);
+							response_l.put ("block", contents);
+						}
 					}
 					else
 					{
@@ -1430,13 +1452,24 @@ void nano::json_handler::block_create ()
 					{
 						if (work == 0)
 						{
-							work = node.work_generate_blocking (previous);
+							auto opt_work (node.work_generate_blocking (previous));
+							if (opt_work.is_initialized ())
+							{
+								work = *opt_work;
+							}
+							else
+							{
+								ec = nano::error_rpc::work_generation_error;
+							}
 						}
-						nano::receive_block receive (previous, source, prv, pub, work);
-						response_l.put ("hash", receive.hash ().to_string ());
-						std::string contents;
-						receive.serialize_json (contents);
-						response_l.put ("block", contents);
+						if (!ec)
+						{
+							nano::receive_block receive (previous, source, prv, pub, work);
+							response_l.put ("hash", receive.hash ().to_string ());
+							std::string contents;
+							receive.serialize_json (contents);
+							response_l.put ("block", contents);
+						}
 					}
 					else
 					{
@@ -1449,13 +1482,24 @@ void nano::json_handler::block_create ()
 					{
 						if (work == 0)
 						{
-							work = node.work_generate_blocking (previous);
+							auto opt_work (node.work_generate_blocking (previous));
+							if (opt_work.is_initialized ())
+							{
+								work = *opt_work;
+							}
+							else
+							{
+								ec = nano::error_rpc::work_generation_error;
+							}
 						}
-						nano::change_block change (previous, representative, prv, pub, work);
-						response_l.put ("hash", change.hash ().to_string ());
-						std::string contents;
-						change.serialize_json (contents);
-						response_l.put ("block", contents);
+						if (!ec)
+						{
+							nano::change_block change (previous, representative, prv, pub, work);
+							response_l.put ("hash", change.hash ().to_string ());
+							std::string contents;
+							change.serialize_json (contents);
+							response_l.put ("block", contents);
+						}
 					}
 					else
 					{
@@ -1470,13 +1514,24 @@ void nano::json_handler::block_create ()
 						{
 							if (work == 0)
 							{
-								work = node.work_generate_blocking (previous);
+								auto opt_work (node.work_generate_blocking (previous));
+								if (opt_work.is_initialized ())
+								{
+									work = *opt_work;
+								}
+								else
+								{
+									ec = nano::error_rpc::work_generation_error;
+								}
 							}
-							nano::send_block send (previous, destination, balance.number () - amount.number (), prv, pub, work);
-							response_l.put ("hash", send.hash ().to_string ());
-							std::string contents;
-							send.serialize_json (contents);
-							response_l.put ("block", contents);
+							if (!ec)
+							{
+								nano::send_block send (previous, destination, balance.number () - amount.number (), prv, pub, work);
+								response_l.put ("hash", send.hash ().to_string ());
+								std::string contents;
+								send.serialize_json (contents);
+								response_l.put ("block", contents);
+							}
 						}
 						else
 						{
