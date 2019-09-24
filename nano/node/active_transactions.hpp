@@ -127,9 +127,9 @@ public:
 	std::chrono::seconds const long_election_threshold;
 	// Delay until requesting confirmation for an election
 	std::chrono::milliseconds const election_request_delay;
-	static size_t constexpr max_block_broadcasts = 20;
+	static size_t constexpr max_block_broadcasts = 30;
 	static size_t constexpr max_confirm_representatives = 30;
-	static size_t constexpr max_confirm_req_batches = 15;
+	static size_t constexpr max_confirm_req_batches = 20;
 	static size_t constexpr max_confirm_req = 15;
 	boost::circular_buffer<double> multipliers_cb;
 	uint64_t trended_active_difficulty;
@@ -181,7 +181,7 @@ private:
 	boost::multi_index::ordered_non_unique<boost::multi_index::member<gap_information, std::chrono::steady_clock::time_point, &gap_information::arrival>>,
 	boost::multi_index::hashed_unique<boost::multi_index::member<gap_information, nano::block_hash, &gap_information::hash>>>>
 	inactive_votes_cache;
-	static size_t constexpr inactive_votes_cache_max{ 16 * 1024 };
+	static size_t constexpr inactive_votes_cache_max{ 32 * 1024 };
 	boost::thread thread;
 
 	friend class confirmation_height_prioritize_frontiers_Test;
