@@ -283,11 +283,11 @@ void nano::active_transactions::request_confirm (nano::unique_lock<std::mutex> &
 					increment_counter = true;
 				}
 			}
-            // Increment counter on counter 1-3 in order to cycle through different batches instead of repeating confirm_req for the same group
-            else if (election_l->confirmation_request_count % 4 != 0)
-            {
-                increment_counter = true;
-            }
+			// Increment counter on counter 1-3 in order to cycle through different batches instead of repeating confirm_req for the same group
+			else if (election_l->confirmation_request_count % 4 != 0)
+			{
+				increment_counter = true;
+			}
 			if (node.network_params.network.is_test_network () || increment_counter)
 			{
 				++election_l->confirmation_request_count;
