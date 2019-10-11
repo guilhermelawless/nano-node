@@ -9,6 +9,9 @@ stages:
   - artifacts_beta
   - artifacts_live
 jobs:
+  fast_finish: true
+  allow_failures:
+    - test: "live osx"
   include:
     - stage: build_base
       name: "base"
