@@ -2978,16 +2978,19 @@ TEST (rpc, work_peer_one)
 	rpc.start ();
 	node2.config.work_peers.push_back (std::make_pair (node1.network.endpoint ().address ().to_string (), rpc.config.port));
 	nano::keypair key1;
-	uint64_t work (0);
-	node2.work_generate (key1.pub, [&work](boost::optional<uint64_t> work_a) {
-		ASSERT_TRUE (work_a.is_initialized ());
-		work = *work_a;
+	boost::optional<uint64_t> work;
+	std::atomic<bool> done {false};
+	node2.work_generate (key1.pub, [&done, &work](boost::optional<uint64_t> work_a) {
+		work = work_a;
+		done = true;
 	});
 	system.deadline_set (5s);
-	while (nano::work_validate (key1.pub, work))
+	while (!done)
 	{
 		ASSERT_NO_ERROR (system.poll ());
 	}
+	ASSERT_TRUE (work.is_initialized ());
+	ASSERT_FALSE (nano::work_validate (key1.pub, *work));
 }
 
 TEST (rpc, work_peer_many)
