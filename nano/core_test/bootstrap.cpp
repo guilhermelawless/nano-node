@@ -391,6 +391,14 @@ TEST (bootstrap_processor, frontiers_unconfirmed)
 	}
 	ASSERT_FALSE (node3->ledger.block_exists (send1->hash ()));
 	ASSERT_FALSE (node3->ledger.block_exists (open1->hash ()));
+	std::cerr << "::::All blocks:::" << std::endl
+	          << "genesis " << genesis.hash ().to_string () << std::endl
+	          << "open1 " << open1->hash ().to_string () << std::endl
+	          << "send1 " << send1->hash ().to_string () << std::endl
+	          << "open2 " << open2->hash ().to_string () << std::endl
+	          << "send2 " << send2->hash ().to_string () << std::endl
+	          << "open3 " << open3->hash ().to_string () << std::endl
+	          << "send3 " << send3->hash ().to_string () << std::endl;
 	ASSERT_EQ (1, node3->stats.count (nano::stat::type::bootstrap, nano::stat::detail::frontier_confirmation_failed, nano::stat::dir::in)); // failed request from node1
 	ASSERT_TRUE (node3->bootstrap_initiator.excluded_peers.check (nano::transport::map_endpoint_to_tcp (node1->network.endpoint ())));
 }

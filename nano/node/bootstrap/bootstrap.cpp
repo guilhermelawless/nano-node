@@ -659,22 +659,23 @@ void nano::bootstrap_attempt::confirm_frontiers (nano::unique_lock<std::mutex> &
 	// clang-format off
 	condition.wait (lock_a, [& stopped = stopped] { return !stopped; });
 	// clang-format on
-	std::vector<nano::block_hash> frontiers;
-	for (auto i (pulls.begin ()), end (pulls.end ()); i != end && frontiers.size () != nano::bootstrap_limits::bootstrap_max_confirm_frontiers; ++i)
+	std::unordered_set<nano::block_hash> unique_frontiers;
+	for (auto i (pulls.begin ()), end (pulls.end ()); i != end && unique_frontiers.size () != nano::bootstrap_limits::bootstrap_max_confirm_frontiers; ++i)
 	{
 		if (!i->head.is_zero ())
 		{
-			frontiers.push_back (i->head);
+			unique_frontiers.insert (i->head);
 		}
 	}
-	for (auto i (recent_pulls_head.begin ()), end (recent_pulls_head.end ()); i != end && frontiers.size () != nano::bootstrap_limits::bootstrap_max_confirm_frontiers; ++i)
+	for (auto i (recent_pulls_head.begin ()), end (recent_pulls_head.end ()); i != end && unique_frontiers.size () != nano::bootstrap_limits::bootstrap_max_confirm_frontiers; ++i)
 	{
 		if (!i->is_zero ())
 		{
-			frontiers.push_back (*i);
+			unique_frontiers.insert (*i);
 		}
 	}
 	lock_a.unlock ();
+	std::vector<nano::block_hash> frontiers (unique_frontiers.begin (), unique_frontiers.end ());
 	auto frontiers_count (frontiers.size ());
 	if (frontiers_count > 0)
 	{
@@ -720,10 +721,12 @@ void nano::bootstrap_attempt::confirm_frontiers (nano::unique_lock<std::mutex> &
 			std::unordered_map<std::shared_ptr<nano::transport::channel>, std::deque<std::pair<nano::block_hash, nano::root>>> batched_confirm_req_bundle;
 			std::deque<std::pair<nano::block_hash, nano::root>> request;
 			// Find confirmed frontiers (tally > 12.5% of reps stake, 60% of requestsed reps responded
+			std::cerr << i << ") Frontiers size " << frontiers.size () << std::endl;
 			for (auto ii (frontiers.begin ()); ii != frontiers.end ();)
 			{
 				if (node->ledger.block_exists (*ii))
 				{
+					std::cerr << i << ") Block exists " << ii->to_string () << std::endl;
 					ii = frontiers.erase (ii);
 				}
 				else
@@ -737,6 +740,7 @@ void nano::bootstrap_attempt::confirm_frontiers (nano::unique_lock<std::mutex> &
 					}
 					if (existing.confirmed || (tally > reps_weight / 8 && existing.voters.size () >= representatives.size () * 0.6)) // 12.5% of weight, 60% of reps
 					{
+						std::cerr << i << ") " << ii->to_string () << " confirmed ? " << existing.confirmed << " tally > reps_weight/8 ? " << (tally > reps_weight / 8) << " voters " << existing.voters.size () << " reps " << representatives.size () << std::endl;
 						ii = frontiers.erase (ii);
 					}
 					else
@@ -765,6 +769,7 @@ void nano::bootstrap_attempt::confirm_frontiers (nano::unique_lock<std::mutex> &
 			auto confirmed_count (frontiers_count - frontiers.size ());
 			if (confirmed_count >= frontiers_count * nano::bootstrap_limits::required_frontier_confirmation_ratio) // 80% of frontiers confirmed
 			{
+				std::cerr << "CONFIRMED ! " << i << " => " << confirmed_count << " " << frontiers_count << " " << nano::bootstrap_limits::required_frontier_confirmation_ratio << std::endl;
 				frontiers_confirmed = true;
 			}
 			else if (i < max_requests)
