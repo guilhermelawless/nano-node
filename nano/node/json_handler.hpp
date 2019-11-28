@@ -59,6 +59,7 @@ public:
 	void confirmation_info ();
 	void confirmation_quorum ();
 	void confirmation_height_currently_processing ();
+	void database_backend ();
 	void database_txn_tracker ();
 	void delegators ();
 	void delegators_count ();

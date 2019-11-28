@@ -1932,6 +1932,12 @@ void nano::json_handler::confirmation_quorum ()
 	response_errors ();
 }
 
+void nano::json_handler::database_backend ()
+{
+	response_l.put ("backend", node.config.rocksdb_config.enable ? "rocksdb" : "lmdb");
+	response_errors ();
+}
+
 void nano::json_handler::database_txn_tracker ()
 {
 	boost::property_tree::ptree json;
@@ -5009,6 +5015,7 @@ ipc_json_handler_no_arg_func_map create_ipc_json_handler_no_arg_func_map ()
 	no_arg_funcs.emplace ("confirmation_history", &nano::json_handler::confirmation_history);
 	no_arg_funcs.emplace ("confirmation_info", &nano::json_handler::confirmation_info);
 	no_arg_funcs.emplace ("confirmation_quorum", &nano::json_handler::confirmation_quorum);
+	no_arg_funcs.emplace ("database_backend", &nano::json_handler::database_backend);
 	no_arg_funcs.emplace ("database_txn_tracker", &nano::json_handler::database_txn_tracker);
 	no_arg_funcs.emplace ("delegators", &nano::json_handler::delegators);
 	no_arg_funcs.emplace ("delegators_count", &nano::json_handler::delegators_count);

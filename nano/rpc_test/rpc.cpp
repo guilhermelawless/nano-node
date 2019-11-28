@@ -7478,3 +7478,55 @@ TEST (rpc, account_lazy_start)
 	ASSERT_TRUE (node2->ledger.block_exists (send1->hash ()));
 	ASSERT_TRUE (node2->ledger.block_exists (open->hash ()));
 }
+
+TEST (rpc, database_backend_lmdb)
+{
+	nano::system system;
+	nano::node_config config (24000, system.logging);
+	config.rocksdb_config.enable = false;
+	auto & node = *system.add_node (config);
+	enable_ipc_transport_tcp (node.config.ipc_config.transport_tcp);
+	nano::node_rpc_config node_rpc_config;
+	nano::ipc::ipc_server ipc_server (node, node_rpc_config);
+	nano::rpc_config rpc_config (true);
+	nano::ipc_rpc_processor ipc_rpc_processor (system.io_ctx, rpc_config);
+	nano::rpc rpc (system.io_ctx, rpc_config, ipc_rpc_processor);
+	rpc.start ();
+	boost::property_tree::ptree request;
+	request.put ("action", "database_backend");
+	test_response response (request, rpc.config.port, system.io_ctx);
+	system.deadline_set (5s);
+	while (response.status == 0)
+	{
+		ASSERT_NO_ERROR (system.poll ());
+	}
+	ASSERT_EQ (200, response.status);
+	ASSERT_EQ ("lmdb", response.json.get<std::string> ("backend"));
+}
+
+#if NANO_ROCKSDB
+TEST (rpc, database_backend_rocksdb)
+{
+	nano::system system;
+	nano::node_config config (24000, system.logging);
+	config.rocksdb_config.enable = true;
+	auto & node = *system.add_node (config);
+	enable_ipc_transport_tcp (node.config.ipc_config.transport_tcp);
+	nano::node_rpc_config node_rpc_config;
+	nano::ipc::ipc_server ipc_server (node, node_rpc_config);
+	nano::rpc_config rpc_config (true);
+	nano::ipc_rpc_processor ipc_rpc_processor (system.io_ctx, rpc_config);
+	nano::rpc rpc (system.io_ctx, rpc_config, ipc_rpc_processor);
+	rpc.start ();
+	boost::property_tree::ptree request;
+	request.put ("action", "database_backend");
+	test_response response (request, rpc.config.port, system.io_ctx);
+	system.deadline_set (5s);
+	while (response.status == 0)
+	{
+		ASSERT_NO_ERROR (system.poll ());
+	}
+	ASSERT_EQ (200, response.status);
+	ASSERT_EQ ("rocksdb", response.json.get<std::string> ("backend"));
+}
+#endif
