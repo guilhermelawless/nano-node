@@ -2,6 +2,7 @@
 
 #include <nano/boost/asio.hpp>
 #include <nano/node/common.hpp>
+#include <nano/node/transport/bandwidth_limiter.hpp>
 #include <nano/node/transport/tcp.hpp>
 #include <nano/node/transport/udp.hpp>
 

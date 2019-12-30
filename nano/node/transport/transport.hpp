@@ -3,7 +3,6 @@
 #include <nano/lib/stats.hpp>
 #include <nano/node/common.hpp>
 #include <nano/node/socket.hpp>
-#include <nano/node/transport/bandwidth_limiter.hpp>
 
 #include <unordered_set>
 
