@@ -21,7 +21,7 @@ bool nano::bandwidth_limiter::should_drop (const size_t & message_size)
 	}
 	nano::lock_guard<std::mutex> lock (mutex);
 
-	if (message_size > limit / rate_buffer.size () || rate + message_size > limit)
+	if (message_size > limit / rate_buffer.size () || trended_rate + message_size > limit)
 	{
 		result = true;
 	}
@@ -29,12 +29,14 @@ bool nano::bandwidth_limiter::should_drop (const size_t & message_size)
 	{
 		rate = rate + message_size;
 	}
-	if (next_trend < std::chrono::steady_clock::now ())
+	auto now = std::chrono::steady_clock::now ();
+	if (next_trend < now)
 	{
-		next_trend = std::chrono::steady_clock::now () + 50ms;
-		rate_buffer.push_back (rate);
-		trended_rate = std::accumulate (rate_buffer.begin (), rate_buffer.end (), size_t{ 0 }) / rate_buffer.size ();
+		// Normalize in case more time has passed
+		rate_buffer.push_back (rate * period / (now - next_trend + period));
+		trended_rate = std::accumulate (rate_buffer.begin (), rate_buffer.end (), size_t{ 0 });
 		rate = 0;
+		next_trend = now + period;
 	}
 	return result;
 }
