@@ -96,6 +96,8 @@ add_library (node
 	repcrawler.cpp
 	testing.hpp
 	testing.cpp
+	transport/bandwidth_limiter.hpp
+	transport/bandwidth_limiter.cpp
 	transport/tcp.hpp
 	transport/tcp.cpp
 	transport/transport.hpp

@@ -163,6 +163,7 @@ public:
 	nano::gap_cache gap_cache;
 	nano::ledger ledger;
 	nano::signature_checker checker;
+	nano::bandwidth_limiter limiter;
 	nano::network network;
 	nano::bootstrap_initiator bootstrap_initiator;
 	nano::bootstrap_listener bootstrap;
