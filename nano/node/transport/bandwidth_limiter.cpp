@@ -6,9 +6,7 @@ using namespace std::chrono_literals;
 
 nano::bandwidth_limiter::bandwidth_limiter (const size_t limit_a) :
 next_trend (std::chrono::steady_clock::now () + 50ms),
-limit (limit_a),
-rate (0),
-trended_rate (0)
+limit (limit_a)
 {
 }
 

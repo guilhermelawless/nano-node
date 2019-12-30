@@ -9,7 +9,7 @@ namespace nano
 class bandwidth_limiter final
 {
 public:
-	// initialize with rate 0 = unbounded
+	// initialize with limit 0 = unbounded
 	bandwidth_limiter (const size_t);
 	bool should_drop (const size_t &);
 	size_t get_rate ();
@@ -25,9 +25,9 @@ private:
 	//limit bandwidth to
 	const size_t limit;
 	//rate, increment if message_size + rate < rate
-	size_t rate;
+	size_t rate{ 0 };
 	//trended rate to even out spikes in traffic
-	size_t trended_rate;
+	size_t trended_rate{ 0 };
 	std::mutex mutex;
 };
 }
