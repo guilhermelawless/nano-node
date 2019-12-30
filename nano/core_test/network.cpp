@@ -893,7 +893,7 @@ TEST (bandwidth_limiter, validate)
 		ASSERT_TRUE (dropped);
 		ASSERT_EQ (limiter_0.get_rate (), 0); //should be 0 as rate is not gathered if not needed
 		ASSERT_EQ (limiter_1.get_rate (), 0); //should be 0 since nothing is small enough to pass through
-		ASSERT_LE (limiter_20.get_rate (), message_size * nano::bandwidth_limiter::buffer_size); // due to the drop
+		ASSERT_NEAR (limiter_20.get_rate (), message_size * nano::bandwidth_limiter::buffer_size, 2 * message_size);
 		ASSERT_LT (limiter_40.get_rate (), message_size * 2 * nano::bandwidth_limiter::buffer_size); // never dropped
 		ASSERT_GT (limiter_40.get_rate (), message_size * 1.5 * nano::bandwidth_limiter::buffer_size); // but got close
 	}
