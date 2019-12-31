@@ -888,6 +888,8 @@ TEST (bandwidth_limiter, validate)
 			ASSERT_TRUE (limiter_1.should_drop (message_size)); // always drop as message > limit / rate_buffer.size ()
 			dropped = limiter_20.should_drop (message_size) || dropped; // should drop eventually
 			ASSERT_FALSE (limiter_40.should_drop (message_size)); // should never drop
+			std::cout << dropped << " " << limiter_20.get_rate () << " " << limiter_20.get_limit () << " "
+			          << " -- " << limiter_40.get_rate () << " " << limiter_40.get_limit () << std::endl;
 			std::this_thread::sleep_for (27ms); // with a polling period of 50ms, this gets close to the limit of limiter_40
 		}
 		ASSERT_TRUE (dropped);

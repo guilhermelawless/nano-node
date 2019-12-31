@@ -227,6 +227,12 @@ bool nano::bandwidth_limiter::should_drop (const size_t & message_size)
 	if (next_trend < now)
 	{
 		rate_buffer.push_back (rate);
+		std::cout << get_limit () << " ";
+		for (auto rate_l : rate_buffer)
+		{
+			std::cout << rate_l << " ";
+		}
+		std::cout << std::endl;
 		trended_rate = std::accumulate (rate_buffer.begin (), rate_buffer.end (), size_t{ 0 });
 		rate = 0;
 		// Reset if too much time has passed
