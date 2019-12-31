@@ -901,6 +901,6 @@ TEST (bandwidth_limiter, validate)
 		ASSERT_EQ (limiter_1.get_rate (), 0); //should be 0 since nothing is small enough to pass through
 		ASSERT_NEAR (limiter_20.get_rate (), limiter_20.get_limit (), 2 * message_size);
 		ASSERT_LT (limiter_40.get_rate (), limiter_40.get_limit ()); // never dropped
-		ASSERT_GT (limiter_40.get_rate (), 0.80 * limiter_40.get_limit ()); // but got close
+		ASSERT_GT (limiter_40.get_rate (), limiter_20.get_limit ());
 	}
 }
