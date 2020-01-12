@@ -143,6 +143,12 @@ public:
 	void ongoing_online_weight_calculation_queue ();
 	bool online () const;
 	bool init_error () const;
+	void publish (nano::transport::channel const &, std::shared_ptr<nano::block>);
+	boost::multi_index_container<nano::block_hash,
+		boost::multi_index::indexed_by<
+			boost::multi_index::sequenced<>,
+			boost::multi_index::hashed_unique<boost::multi_index::identity<nano::block_hash>>>>
+	new_blocks;
 	nano::worker worker;
 	nano::write_database_queue write_database_queue;
 	boost::asio::io_context & io_ctx;

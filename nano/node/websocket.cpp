@@ -331,7 +331,10 @@ nano::websocket::topic to_topic (std::string const & topic_a)
 	{
 		topic = nano::websocket::topic::work;
 	}
-
+	else if (topic_a == "new_block_channel")
+	{
+		topic = nano::websocket::topic::new_block_channel;
+	}
 	return topic;
 }
 
@@ -361,6 +364,10 @@ std::string from_topic (nano::websocket::topic topic_a)
 	else if (topic_a == nano::websocket::topic::work)
 	{
 		topic = "work";
+	}
+	else if (topic_a == nano::websocket::topic::new_block_channel)
+	{
+		topic = "new_block_channel";
 	}
 	return topic;
 }
@@ -729,6 +736,19 @@ nano::websocket::message nano::websocket::message_builder::work_cancelled (nano:
 nano::websocket::message nano::websocket::message_builder::work_failed (nano::block_hash const & root_a, uint64_t const difficulty_a, uint64_t const publish_threshold_a, std::chrono::milliseconds const & duration_a, std::vector<std::string> const & bad_peers_a)
 {
 	return work_generation (root_a, 0, difficulty_a, publish_threshold_a, duration_a, "", bad_peers_a, false, false);
+}
+
+nano::websocket::message nano::websocket::message_builder::block_channel (nano::block_hash const & hash_a, nano::account const & account_a, std::string const & address_a, uint16_t const port_a)
+{
+	nano::websocket::message message_l (nano::websocket::topic::new_block_channel);
+	set_common_fields (message_l);
+	boost::property_tree::ptree fields_l;
+	fields_l.put ("hash", hash_a.to_string ());
+	fields_l.put ("account", account_a.to_account ());
+	fields_l.put ("address", address_a);
+	fields_l.put ("port", std::to_string (port_a));
+	message_l.contents.add_child ("message", fields_l);
+	return message_l;
 }
 
 void nano::websocket::message_builder::set_common_fields (nano::websocket::message & message_a)

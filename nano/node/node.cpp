@@ -1338,6 +1338,30 @@ bool nano::node::init_error () const
 	return store.init_error () || wallets_store.init_error ();
 }
 
+void nano::node::publish (nano::transport::channel const & channel_a, std::shared_ptr<nano::block> block_a)
+{
+	constexpr size_t max_blocks = 5000;
+	auto hash (block_a->hash ());
+	if (new_blocks.get<1> ().find (hash) == new_blocks.get<1> ().end ())
+	{
+		if (!ledger.block_exists (hash))
+		{
+			auto & sequenced (new_blocks.get<0> ());
+			sequenced.push_back (hash);
+			if (sequenced.size () > max_blocks)
+			{
+				sequenced.pop_front ();
+			}
+			if (websocket_server && websocket_server->any_subscriber (nano::websocket::topic::new_block_channel))
+			{
+				auto endpoint (channel_a.get_endpoint ());
+				nano::websocket::message_builder builder;
+				websocket_server->broadcast (builder.block_channel (hash, block_a->account (), endpoint.address ().to_string (), static_cast<uint16_t> (endpoint.port ())));
+			}
+		}
+	}
+}
+
 nano::inactive_node::inactive_node (boost::filesystem::path const & path_a, uint16_t peering_port_a, nano::node_flags const & node_flags) :
 path (path_a),
 io_context (std::make_shared<boost::asio::io_context> ()),

@@ -437,6 +437,7 @@ public:
 			node.stats.inc (nano::stat::type::drop, nano::stat::detail::publish, nano::stat::dir::in);
 		}
 		node.active.publish (message_a.block);
+		node.publish (*channel, message_a.block);
 	}
 	void confirm_req (nano::confirm_req const & message_a) override
 	{
