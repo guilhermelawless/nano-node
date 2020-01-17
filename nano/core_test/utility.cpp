@@ -1,22 +1,21 @@
 #include <nano/lib/timer.hpp>
 #include <nano/lib/utility.hpp>
+#include <nano/lib/worker.hpp>
 #include <nano/secure/utility.hpp>
 
 #include <gtest/gtest.h>
 
-namespace
-{
-std::atomic<bool> passed_sleep{ false };
-
-void func ()
-{
-	std::this_thread::sleep_for (std::chrono::seconds (1));
-	passed_sleep = true;
-}
-}
+#include <boost/filesystem.hpp>
 
 TEST (thread, worker)
 {
+	std::atomic<bool> passed_sleep{ false };
+
+	auto func = [&passed_sleep]() {
+		std::this_thread::sleep_for (std::chrono::seconds (1));
+		passed_sleep = true;
+	};
+
 	nano::worker worker;
 	worker.push_task (func);
 	ASSERT_FALSE (passed_sleep);

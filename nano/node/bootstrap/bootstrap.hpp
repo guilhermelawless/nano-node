@@ -6,19 +6,18 @@
 #include <nano/secure/blockstore.hpp>
 #include <nano/secure/ledger.hpp>
 
-#include <boost/log/sources/logger.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
-#include <boost/multi_index/random_access_index.hpp>
 #include <boost/multi_index_container.hpp>
 #include <boost/thread/thread.hpp>
 
 #include <atomic>
 #include <future>
 #include <queue>
-#include <stack>
 #include <unordered_set>
+
+namespace mi = boost::multi_index;
 
 namespace nano
 {
@@ -59,7 +58,7 @@ class bulk_push_client;
 class bootstrap_attempt final : public std::enable_shared_from_this<bootstrap_attempt>
 {
 public:
-	explicit bootstrap_attempt (std::shared_ptr<nano::node> node_a, nano::bootstrap_mode mode_a = nano::bootstrap_mode::legacy);
+	explicit bootstrap_attempt (std::shared_ptr<nano::node> node_a, nano::bootstrap_mode mode_a = nano::bootstrap_mode::legacy, std::string id_a = "");
 	~bootstrap_attempt ();
 	void run ();
 	std::shared_ptr<nano::bootstrap_client> connection (nano::unique_lock<std::mutex> &, bool = false);
@@ -83,6 +82,7 @@ public:
 	void attempt_restart_check (nano::unique_lock<std::mutex> &);
 	bool confirm_frontiers (nano::unique_lock<std::mutex> &);
 	bool process_block (std::shared_ptr<nano::block>, nano::account const &, uint64_t, nano::bulk_pull::count_t, bool, unsigned);
+	std::string mode_text ();
 	/** Lazy bootstrap */
 	void lazy_run ();
 	void lazy_start (nano::hash_or_account const &, bool confirmed = true);
@@ -131,6 +131,7 @@ public:
 	std::atomic<bool> stopped{ false };
 	std::chrono::steady_clock::time_point attempt_start{ std::chrono::steady_clock::now () };
 	nano::bootstrap_mode mode;
+	std::string id;
 	std::mutex mutex;
 	nano::condition_variable condition;
 	// Lazy bootstrap
@@ -148,12 +149,16 @@ public:
 	class count_tag
 	{
 	};
-	boost::multi_index_container<
-	lazy_destinations_item,
-	boost::multi_index::indexed_by<
-	boost::multi_index::ordered_non_unique<boost::multi_index::tag<count_tag>, boost::multi_index::member<lazy_destinations_item, uint64_t, &lazy_destinations_item::count>, std::greater<uint64_t>>,
-	boost::multi_index::hashed_unique<boost::multi_index::tag<account_tag>, boost::multi_index::member<lazy_destinations_item, nano::account, &lazy_destinations_item::account>>>>
+	// clang-format off
+	boost::multi_index_container<lazy_destinations_item,
+	mi::indexed_by<
+		mi::ordered_non_unique<mi::tag<count_tag>,
+			mi::member<lazy_destinations_item, uint64_t, &lazy_destinations_item::count>,
+			std::greater<uint64_t>>,
+		mi::hashed_unique<mi::tag<account_tag>,
+			mi::member<lazy_destinations_item, nano::account, &lazy_destinations_item::account>>>>
 	lazy_destinations;
+	// clang-format on
 	std::atomic<size_t> lazy_blocks_count{ 0 };
 	std::atomic<bool> lazy_destinations_flushed{ false };
 	std::mutex lazy_mutex;
@@ -196,12 +201,15 @@ public:
 	class account_head_tag
 	{
 	};
-	boost::multi_index_container<
-	nano::cached_pulls,
-	boost::multi_index::indexed_by<
-	boost::multi_index::ordered_non_unique<boost::multi_index::member<nano::cached_pulls, std::chrono::steady_clock::time_point, &nano::cached_pulls::time>>,
-	boost::multi_index::hashed_unique<boost::multi_index::tag<account_head_tag>, boost::multi_index::member<nano::cached_pulls, nano::uint512_union, &nano::cached_pulls::account_head>>>>
+	// clang-format off
+	boost::multi_index_container<nano::cached_pulls,
+	mi::indexed_by<
+		mi::ordered_non_unique<
+			mi::member<nano::cached_pulls, std::chrono::steady_clock::time_point, &nano::cached_pulls::time>>,
+		mi::hashed_unique<mi::tag<account_head_tag>,
+			mi::member<nano::cached_pulls, nano::uint512_union, &nano::cached_pulls::account_head>>>>
 	cache;
+	// clang-format on
 	constexpr static size_t cache_size_max = 10000;
 };
 class excluded_peers_item final
@@ -221,12 +229,15 @@ public:
 	class endpoint_tag
 	{
 	};
-	boost::multi_index_container<
-	nano::excluded_peers_item,
-	boost::multi_index::indexed_by<
-	boost::multi_index::ordered_non_unique<boost::multi_index::member<nano::excluded_peers_item, std::chrono::steady_clock::time_point, &nano::excluded_peers_item::exclude_until>>,
-	boost::multi_index::hashed_unique<boost::multi_index::tag<endpoint_tag>, boost::multi_index::member<nano::excluded_peers_item, nano::tcp_endpoint, &nano::excluded_peers_item::endpoint>>>>
+	// clang-format off
+	boost::multi_index_container<nano::excluded_peers_item,
+	mi::indexed_by<
+		mi::ordered_non_unique<
+			mi::member<nano::excluded_peers_item, std::chrono::steady_clock::time_point, &nano::excluded_peers_item::exclude_until>>,
+		mi::hashed_unique<mi::tag<endpoint_tag>,
+			mi::member<nano::excluded_peers_item, nano::tcp_endpoint, &nano::excluded_peers_item::endpoint>>>>
 	peers;
+	// clang-format on
 	constexpr static size_t excluded_peers_size_max = 5000;
 	constexpr static double excluded_peers_percentage_limit = 0.5;
 	constexpr static uint64_t score_limit = 2;
@@ -239,9 +250,9 @@ class bootstrap_initiator final
 public:
 	explicit bootstrap_initiator (nano::node &);
 	~bootstrap_initiator ();
-	void bootstrap (nano::endpoint const &, bool add_to_peers = true, bool frontiers_confirmed = false);
-	void bootstrap (bool force = false);
-	void bootstrap_lazy (nano::hash_or_account const &, bool force = false, bool confirmed = true);
+	void bootstrap (nano::endpoint const &, bool add_to_peers = true, bool frontiers_confirmed = false, std::string id_a = "");
+	void bootstrap (bool force = false, std::string id_a = "");
+	void bootstrap_lazy (nano::hash_or_account const &, bool force = false, bool confirmed = true, std::string id_a = "");
 	void bootstrap_wallet (std::deque<nano::account> &);
 	void run_bootstrap ();
 	void notify_listeners (bool);
@@ -262,10 +273,10 @@ private:
 	std::vector<std::function<void(bool)>> observers;
 	boost::thread thread;
 
-	friend std::unique_ptr<seq_con_info_component> collect_seq_con_info (bootstrap_initiator & bootstrap_initiator, const std::string & name);
+	friend std::unique_ptr<container_info_component> collect_container_info (bootstrap_initiator & bootstrap_initiator, const std::string & name);
 };
 
-std::unique_ptr<seq_con_info_component> collect_seq_con_info (bootstrap_initiator & bootstrap_initiator, const std::string & name);
+std::unique_ptr<container_info_component> collect_container_info (bootstrap_initiator & bootstrap_initiator, const std::string & name);
 class bootstrap_limits final
 {
 public:
@@ -282,6 +293,7 @@ public:
 	static constexpr unsigned frontier_confirmation_blocks_limit = 128 * 1024;
 	static constexpr unsigned requeued_pulls_limit = 256;
 	static constexpr unsigned requeued_pulls_limit_test = 2;
+	static constexpr unsigned requeued_pulls_processed_blocks_factor = 4096;
 	static constexpr unsigned bulk_push_cost_limit = 200;
 	static constexpr std::chrono::seconds lazy_flush_delay_sec = std::chrono::seconds (5);
 	static constexpr unsigned lazy_destinations_request_limit = 256 * 1024;

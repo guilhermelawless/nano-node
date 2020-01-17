@@ -1,21 +1,16 @@
 #pragma once
 
-#include <nano/boost/asio.hpp>
-#include <nano/boost/beast.hpp>
+#include <nano/boost/beast/core.hpp>
+#include <nano/boost/beast/websocket.hpp>
 #include <nano/lib/blocks.hpp>
 #include <nano/lib/numbers.hpp>
 
 #include <boost/property_tree/json_parser.hpp>
 
-#include <algorithm>
-#include <cstdlib>
 #include <deque>
-#include <functional>
-#include <iostream>
 #include <memory>
 #include <mutex>
 #include <string>
-#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -31,7 +26,10 @@ using socket_type = boost::asio::basic_stream_socket<boost::asio::ip::tcp, boost
 
 namespace nano
 {
-class node;
+class wallets;
+class logger_mt;
+class vote;
+class election_status;
 enum class election_status_type : uint8_t;
 namespace websocket
 {
@@ -54,6 +52,8 @@ namespace websocket
 		active_difficulty,
 		/** Work generation message */
 		work,
+		/** A bootstrap message */
+		bootstrap,
 		/** New block + channel details */
 		new_block_channel,
 		/** Auxiliary length, not a valid topic, must be the last enum */
@@ -85,11 +85,13 @@ namespace websocket
 	public:
 		message block_confirmed (std::shared_ptr<nano::block> block_a, nano::account const & account_a, nano::amount const & amount_a, std::string subtype, bool include_block, nano::election_status const & election_status_a, nano::websocket::confirmation_options const & options_a);
 		message stopped_election (nano::block_hash const & hash_a);
-		message vote_received (std::shared_ptr<nano::vote> vote_a);
+		message vote_received (std::shared_ptr<nano::vote> vote_a, nano::vote_code code_a);
 		message difficulty_changed (uint64_t publish_threshold_a, uint64_t difficulty_active_a);
 		message work_generation (nano::block_hash const & root_a, uint64_t const work_a, uint64_t const difficulty_a, uint64_t const publish_threshold_a, std::chrono::milliseconds const & duration_a, std::string const & peer_a, std::vector<std::string> const & bad_peers_a, bool const completed_a = true, bool const cancelled_a = false);
 		message work_cancelled (nano::block_hash const & root_a, uint64_t const difficulty_a, uint64_t const publish_threshold_a, std::chrono::milliseconds const & duration_a, std::vector<std::string> const & bad_peers_a);
 		message work_failed (nano::block_hash const & root_a, uint64_t const difficulty_a, uint64_t const publish_threshold_a, std::chrono::milliseconds const & duration_a, std::vector<std::string> const & bad_peers_a);
+		message bootstrap_started (std::string const & id_a, std::string const & mode_a);
+		message bootstrap_exited (std::string const & id_a, std::string const & mode_a, std::chrono::steady_clock::time_point const start_time_a, uint64_t const total_blocks_a);
 		message block_channel (nano::block_hash const & hash_a, nano::account const & account_a, std::string const & address_a, uint16_t const port_a);
 
 	private:
@@ -126,8 +128,8 @@ namespace websocket
 	class confirmation_options final : public options
 	{
 	public:
-		confirmation_options (nano::node & node_a);
-		confirmation_options (boost::property_tree::ptree const & options_a, nano::node & node_a);
+		confirmation_options (nano::wallets & wallets_a);
+		confirmation_options (boost::property_tree::ptree const & options_a, nano::wallets & wallets_a, nano::logger_mt & logger_a);
 
 		/**
 		 * Checks if a message should be filtered for given block confirmation options.
@@ -155,7 +157,7 @@ namespace websocket
 		static constexpr const uint8_t type_all = type_all_active | type_inactive;
 
 	private:
-		nano::node & node;
+		nano::wallets & wallets;
 		bool include_election_info{ false };
 		bool include_block{ true };
 		bool has_account_filtering_options{ false };
@@ -173,7 +175,7 @@ namespace websocket
 	{
 	public:
 		vote_options ();
-		vote_options (boost::property_tree::ptree const & options_a, nano::node & node_a);
+		vote_options (boost::property_tree::ptree const & options_a, nano::logger_mt & logger_a);
 
 		/**
 		 * Checks if a message should be filtered for given vote received options.
@@ -183,8 +185,9 @@ namespace websocket
 		bool should_filter (message const & message_a) const override;
 
 	private:
-		nano::node & node;
 		std::unordered_set<std::string> representatives;
+		bool include_replays{ false };
+		bool include_indeterminate{ false };
 	};
 
 	/** A websocket session managing its own lifetime */
@@ -246,7 +249,7 @@ namespace websocket
 	class listener final : public std::enable_shared_from_this<listener>
 	{
 	public:
-		listener (nano::node & node_a, boost::asio::ip::tcp::endpoint endpoint_a);
+		listener (nano::logger_mt & logger_a, nano::wallets & wallets_a, boost::asio::io_context & io_ctx_a, boost::asio::ip::tcp::endpoint endpoint_a);
 
 		/** Start accepting connections */
 		void run ();
@@ -262,9 +265,14 @@ namespace websocket
 		/** Broadcast \p message to all session subscribing to the message topic. */
 		void broadcast (nano::websocket::message message_a);
 
-		nano::node & get_node () const
+		nano::logger_mt & get_logger () const
 		{
-			return node;
+			return logger;
+		}
+
+		nano::wallets & get_wallets () const
+		{
+			return wallets;
 		}
 
 		/**
@@ -290,7 +298,8 @@ namespace websocket
 		/** Removes from subscription count of a specific topic*/
 		void decrease_subscriber_count (nano::websocket::topic const & topic_a);
 
-		nano::node & node;
+		nano::logger_mt & logger;
+		nano::wallets & wallets;
 		boost::asio::ip::tcp::acceptor acceptor;
 		socket_type socket;
 		std::mutex sessions_mutex;

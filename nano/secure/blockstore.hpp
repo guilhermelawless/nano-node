@@ -1,11 +1,11 @@
 #pragma once
 
 #include <nano/crypto_lib/random_pool.hpp>
-#include <nano/lib/config.hpp>
 #include <nano/lib/diagnosticsconfig.hpp>
 #include <nano/lib/logger_mt.hpp>
 #include <nano/lib/memory.hpp>
 #include <nano/lib/rocksdbconfig.hpp>
+#include <nano/secure/buffer.hpp>
 #include <nano/secure/common.hpp>
 #include <nano/secure/versioning.hpp>
 
@@ -90,6 +90,16 @@ public:
 	db_val (sizeof (val_a), const_cast<nano::unchecked_key *> (&val_a))
 	{
 		static_assert (std::is_standard_layout<nano::unchecked_key>::value, "Standard layout is required");
+	}
+
+	db_val (nano::confirmation_height_info const & val_a) :
+	buffer (std::make_shared<std::vector<uint8_t>> ())
+	{
+		{
+			nano::vectorstream stream (*buffer);
+			val_a.serialize (stream);
+		}
+		convert_buffer_to_value ();
 	}
 
 	db_val (nano::block_info const & val_a) :
@@ -180,6 +190,16 @@ public:
 		assert (size () == sizeof (result));
 		static_assert (sizeof (nano::pending_key::account) + sizeof (nano::pending_key::hash) == sizeof (result), "Packed class");
 		std::copy (reinterpret_cast<uint8_t const *> (data ()), reinterpret_cast<uint8_t const *> (data ()) + sizeof (result), reinterpret_cast<uint8_t *> (&result));
+		return result;
+	}
+
+	explicit operator nano::confirmation_height_info () const
+	{
+		nano::bufferstream stream (reinterpret_cast<uint8_t const *> (data ()), size ());
+		nano::confirmation_height_info result;
+		bool error (result.deserialize (stream));
+		(void)error;
+		assert (!error);
 		return result;
 	}
 
@@ -516,7 +536,7 @@ public:
 		impl->fill (current);
 		return *this;
 	}
-	nano::store_iterator<T, U> & operator= (nano::store_iterator<T, U> && other_a)
+	nano::store_iterator<T, U> & operator= (nano::store_iterator<T, U> && other_a) noexcept
 	{
 		impl = std::move (other_a.impl);
 		current = std::move (other_a.current);
@@ -626,7 +646,7 @@ private:
 	std::unique_ptr<nano::write_transaction_impl> impl;
 };
 
-class rep_weights;
+class ledger_cache;
 
 /**
  * Manages block storage and iteration
@@ -635,14 +655,14 @@ class block_store
 {
 public:
 	virtual ~block_store () = default;
-	virtual void initialize (nano::write_transaction const &, nano::genesis const &, nano::rep_weights &, std::atomic<uint64_t> &, std::atomic<uint64_t> &) = 0;
+	virtual void initialize (nano::write_transaction const &, nano::genesis const &, nano::ledger_cache &) = 0;
 	virtual void block_put (nano::write_transaction const &, nano::block_hash const &, nano::block const &, nano::block_sideband const &) = 0;
 	virtual nano::block_hash block_successor (nano::transaction const &, nano::block_hash const &) const = 0;
 	virtual void block_successor_clear (nano::write_transaction const &, nano::block_hash const &) = 0;
 	virtual std::shared_ptr<nano::block> block_get (nano::transaction const &, nano::block_hash const &, nano::block_sideband * = nullptr) const = 0;
 	virtual std::shared_ptr<nano::block> block_get_v14 (nano::transaction const &, nano::block_hash const &, nano::block_sideband_v14 * = nullptr, bool * = nullptr) const = 0;
 	virtual std::shared_ptr<nano::block> block_random (nano::transaction const &) = 0;
-	virtual void block_del (nano::write_transaction const &, nano::block_hash const &) = 0;
+	virtual void block_del (nano::write_transaction const &, nano::block_hash const &, nano::block_type) = 0;
 	virtual bool block_exists (nano::transaction const &, nano::block_hash const &) = 0;
 	virtual bool block_exists (nano::transaction const &, nano::block_type, nano::block_hash const &) = 0;
 	virtual nano::block_counts block_count (nano::transaction const &) = 0;
@@ -659,7 +679,7 @@ public:
 	virtual void account_del (nano::write_transaction const &, nano::account const &) = 0;
 	virtual bool account_exists (nano::transaction const &, nano::account const &) = 0;
 	virtual size_t account_count (nano::transaction const &) = 0;
-	virtual void confirmation_height_clear (nano::write_transaction const &, nano::account const & account, uint64_t existing_confirmation_height) = 0;
+	virtual void confirmation_height_clear (nano::write_transaction const &, nano::account const &, uint64_t) = 0;
 	virtual void confirmation_height_clear (nano::write_transaction const &) = 0;
 	virtual nano::store_iterator<nano::account, nano::account_info> latest_begin (nano::transaction const &, nano::account const &) = 0;
 	virtual nano::store_iterator<nano::account, nano::account_info> latest_begin (nano::transaction const &) = 0;
@@ -683,9 +703,9 @@ public:
 	virtual void unchecked_put (nano::write_transaction const &, nano::block_hash const &, std::shared_ptr<nano::block> const &) = 0;
 	virtual std::vector<nano::unchecked_info> unchecked_get (nano::transaction const &, nano::block_hash const &) = 0;
 	virtual void unchecked_del (nano::write_transaction const &, nano::unchecked_key const &) = 0;
-	virtual nano::store_iterator<nano::unchecked_key, nano::unchecked_info> unchecked_begin (nano::transaction const &) = 0;
-	virtual nano::store_iterator<nano::unchecked_key, nano::unchecked_info> unchecked_begin (nano::transaction const &, nano::unchecked_key const &) = 0;
-	virtual nano::store_iterator<nano::unchecked_key, nano::unchecked_info> unchecked_end () = 0;
+	virtual nano::store_iterator<nano::unchecked_key, nano::unchecked_info> unchecked_begin (nano::transaction const &) const = 0;
+	virtual nano::store_iterator<nano::unchecked_key, nano::unchecked_info> unchecked_begin (nano::transaction const &, nano::unchecked_key const &) const = 0;
+	virtual nano::store_iterator<nano::unchecked_key, nano::unchecked_info> unchecked_end () const = 0;
 	virtual size_t unchecked_count (nano::transaction const &) = 0;
 
 	// Return latest vote for an account from store
@@ -719,19 +739,20 @@ public:
 	virtual nano::store_iterator<nano::endpoint_key, nano::no_value> peers_begin (nano::transaction const & transaction_a) const = 0;
 	virtual nano::store_iterator<nano::endpoint_key, nano::no_value> peers_end () const = 0;
 
-	virtual void confirmation_height_put (nano::write_transaction const & transaction_a, nano::account const & account_a, uint64_t confirmation_height_a) = 0;
-	virtual bool confirmation_height_get (nano::transaction const & transaction_a, nano::account const & account_a, uint64_t & confirmation_height_a) = 0;
+	virtual void confirmation_height_put (nano::write_transaction const & transaction_a, nano::account const & account_a, nano::confirmation_height_info const & confirmation_height_info_a) = 0;
+	virtual bool confirmation_height_get (nano::transaction const & transaction_a, nano::account const & account_a, nano::confirmation_height_info & confirmation_height_info_a) = 0;
 	virtual bool confirmation_height_exists (nano::transaction const & transaction_a, nano::account const & account_a) const = 0;
 	virtual void confirmation_height_del (nano::write_transaction const & transaction_a, nano::account const & account_a) = 0;
 	virtual uint64_t confirmation_height_count (nano::transaction const & transaction_a) = 0;
-	virtual nano::store_iterator<nano::account, uint64_t> confirmation_height_begin (nano::transaction const & transaction_a, nano::account const & account_a) = 0;
-	virtual nano::store_iterator<nano::account, uint64_t> confirmation_height_begin (nano::transaction const & transaction_a) = 0;
-	virtual nano::store_iterator<nano::account, uint64_t> confirmation_height_end () = 0;
+	virtual nano::store_iterator<nano::account, nano::confirmation_height_info> confirmation_height_begin (nano::transaction const & transaction_a, nano::account const & account_a) = 0;
+	virtual nano::store_iterator<nano::account, nano::confirmation_height_info> confirmation_height_begin (nano::transaction const & transaction_a) = 0;
+	virtual nano::store_iterator<nano::account, nano::confirmation_height_info> confirmation_height_end () = 0;
 
 	virtual uint64_t block_account_height (nano::transaction const & transaction_a, nano::block_hash const & hash_a) const = 0;
 	virtual std::mutex & get_cache_mutex () = 0;
 
 	virtual bool copy_db (boost::filesystem::path const & destination) = 0;
+	virtual void rebuild_db (nano::write_transaction const & transaction_a) = 0;
 
 	/** Not applicable to all sub-classes */
 	virtual void serialize_mdb_tracker (boost::property_tree::ptree &, std::chrono::milliseconds, std::chrono::milliseconds) = 0;
@@ -743,6 +764,8 @@ public:
 
 	/** Start read-only transaction */
 	virtual nano::read_transaction tx_begin_read () = 0;
+
+	virtual std::string vendor_get () const = 0;
 };
 
 std::unique_ptr<nano::block_store> make_store (nano::logger_mt & logger, boost::filesystem::path const & path, bool open_read_only = false, bool add_db_postfix = false, nano::rocksdb_config const & rocksdb_config = nano::rocksdb_config{}, nano::txn_tracking_config const & txn_tracking_config_a = nano::txn_tracking_config{}, std::chrono::milliseconds block_processor_batch_max_time_a = std::chrono::milliseconds (5000), int lmdb_max_dbs = 128, size_t batch_size = 512, bool backup_before_upgrade = false, bool rocksdb_backend = false);

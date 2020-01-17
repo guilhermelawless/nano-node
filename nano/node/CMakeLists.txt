@@ -43,10 +43,14 @@ add_library (node
 	common.cpp
 	confirmation_height_processor.hpp
 	confirmation_height_processor.cpp
+	confirmation_solicitor.cpp
+	confirmation_solicitor.hpp
 	daemonconfig.hpp
 	daemonconfig.cpp
 	distributed_work.hpp
 	distributed_work.cpp
+	distributed_work_factory.hpp
+	distributed_work_factory.cpp
 	election.hpp
 	election.cpp
 	gap_cache.hpp
@@ -94,6 +98,8 @@ add_library (node
 	node_pow_server_config.cpp
 	repcrawler.hpp
 	repcrawler.cpp
+	request_aggregator.hpp
+	request_aggregator.cpp
 	testing.hpp
 	testing.cpp
 	transport/tcp.hpp
