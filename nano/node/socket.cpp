@@ -81,10 +81,10 @@ void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std:
 		{
 			boost::asio::post (strand, boost::asio::bind_executor (strand, [buffer_a, callback_a, this_l]() {
 				bool write_in_progress = !this_l->send_queue.empty ();
-				auto queue_size = this_l->send_queue.size ();
-				if (queue_size < this_l->queue_size_max)
+				if (this_l->send_queue_size < this_l->queue_size_max)
 				{
 					this_l->send_queue.emplace_back (nano::socket::queue_item{ buffer_a, callback_a });
+					++this_l->send_queue_size;
 				}
 				else if (auto node_l = this_l->node.lock ())
 				{
@@ -142,6 +142,7 @@ void nano::socket::write_queued_messages ()
 						}
 
 						this_l->send_queue.pop_front ();
+						--this_l->send_queue_size;
 						if (!ec && !this_l->send_queue.empty ())
 						{
 							this_l->write_queued_messages ();
@@ -245,6 +246,7 @@ void nano::socket::close_internal ()
 		tcp_socket.shutdown (boost::asio::ip::tcp::socket::shutdown_both, ec);
 		tcp_socket.close (ec);
 		send_queue.clear ();
+		send_queue_size = 0;
 		if (ec)
 		{
 			if (auto node_l = node.lock ())
@@ -264,6 +266,11 @@ nano::tcp_endpoint nano::socket::remote_endpoint () const
 void nano::socket::set_writer_concurrency (concurrency writer_concurrency_a)
 {
 	writer_concurrency = writer_concurrency_a;
+}
+
+bool nano::socket::almost_full () const
+{
+	return send_queue_size > queue_size_almost_full;
 }
 
 nano::server_socket::server_socket (std::shared_ptr<nano::node> node_a, boost::asio::ip::tcp::endpoint local_a, size_t max_connections_a, nano::socket::concurrency concurrency_a) :

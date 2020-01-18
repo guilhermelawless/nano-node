@@ -55,6 +55,8 @@ public:
 	void start_timer (std::chrono::seconds deadline_a);
 	/** Change write concurrent */
 	void set_writer_concurrency (concurrency writer_concurrency_a);
+	/** This can be used to know if the write queue has little capacity left */
+	bool almost_full () const;
 
 protected:
 	/** Holds the buffer and callback for queued writes */
@@ -75,11 +77,13 @@ protected:
 	std::deque<queue_item> send_queue;
 	std::atomic<concurrency> writer_concurrency;
 
+	std::atomic<uint64_t> send_queue_size{ 0 };
 	std::atomic<uint64_t> next_deadline;
 	std::atomic<uint64_t> last_completion_time;
 	std::atomic<bool> timed_out{ false };
 	boost::optional<std::chrono::seconds> io_timeout;
-	size_t const queue_size_max = 128;
+	size_t const queue_size_max = 512;
+	size_t const queue_size_almost_full = 0.8 * queue_size_max;
 
 	/** Set by close() - completion handlers must check this. This is more reliable than checking
 	 error codes as the OS may have already completed the async operation. */

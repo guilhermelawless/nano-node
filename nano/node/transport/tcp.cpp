@@ -96,6 +96,16 @@ std::string nano::transport::channel_tcp::to_string () const
 	return "";
 }
 
+bool nano::transport::channel_tcp::almost_full () const
+{
+	bool result = true;
+	if (auto socket_l = socket.lock ())
+	{
+		result = socket_l->almost_full ();
+	}
+	return result;
+}
+
 nano::transport::tcp_channels::tcp_channels (nano::node & node_a) :
 node (node_a)
 {

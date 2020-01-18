@@ -34,6 +34,7 @@ namespace transport
 		std::function<void(boost::system::error_code const &, size_t)> callback (nano::stat::detail, std::function<void(boost::system::error_code const &, size_t)> const & = nullptr) const override;
 		std::function<void(boost::system::error_code const &, size_t)> tcp_callback (nano::stat::detail, nano::tcp_endpoint const &, std::function<void(boost::system::error_code const &, size_t)> const & = nullptr) const;
 		std::string to_string () const override;
+		bool almost_full () const;
 		bool operator== (nano::transport::channel_tcp const & other_a) const
 		{
 			return &node == &other_a.node && socket.lock () == other_a.socket.lock ();

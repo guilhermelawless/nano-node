@@ -38,13 +38,17 @@ bool nano::confirmation_solicitor::add (nano::election const & election_a)
 	bool result = true;
 	for (auto const & rep : representatives)
 	{
-		if (election_a.last_votes.find (rep.account) == election_a.last_votes.end ())
+		auto tcp_channel (std::dynamic_pointer_cast<nano::transport::channel_tcp> (rep.channel));
+		if (!tcp_channel || (tcp_channel && !tcp_channel->almost_full ()))
 		{
-			auto & request_queue (requests[rep.channel]);
-			if (request_queue.size () < max_channel_requests)
+			if (election_a.last_votes.find (rep.account) == election_a.last_votes.end ())
 			{
-				request_queue.emplace_back (election_a.status.winner->hash (), election_a.status.winner->root ());
-				result = false;
+				auto & request_queue (requests[rep.channel]);
+				if (request_queue.size () < max_channel_requests)
+				{
+					request_queue.emplace_back (election_a.status.winner->hash (), election_a.status.winner->root ());
+					result = false;
+				}
 			}
 		}
 	}
