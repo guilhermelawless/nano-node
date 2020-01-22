@@ -565,7 +565,10 @@ TEST (active_transactions, update_difficulty)
 	node1.process_active (send1);
 	node1.process_active (send2);
 	node1.block_processor.flush ();
-	system.deadline_set (10s);
+	// Share the updated blocks
+	node1.network.flood_block (send1);
+	node1.network.flood_block (send2);
+	system.deadline_set (5s);
 	bool done (false);
 	while (!done)
 	{
