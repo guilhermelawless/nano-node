@@ -56,48 +56,28 @@ nano::distributed_work::~distributed_work ()
 
 void nano::distributed_work::start ()
 {
-	if (need_resolve.empty ())
+	for (auto const & address : need_resolve)
 	{
-		start_work ();
-	}
-	else
-	{
-		auto current (need_resolve.back ());
-		need_resolve.pop_back ();
-		auto this_l (shared_from_this ());
 		boost::system::error_code ec;
-		auto parsed_address (boost::asio::ip::make_address_v6 (current.first, ec));
+		auto parsed (boost::asio::ip::make_address (address.first, ec));
 		if (!ec)
 		{
-			outstanding.emplace_back (parsed_address, current.second);
-			start ();
+			outstanding.emplace_back (nano::tcp_endpoint{ parsed, address.second });
 		}
-		else
+		else if (backoff == std::chrono::seconds (1))
 		{
-			node.network.resolver.async_resolve (boost::asio::ip::udp::resolver::query (current.first, std::to_string (current.second)), [current, this_l](boost::system::error_code const & ec, boost::asio::ip::udp::resolver::iterator i_a) {
-				if (!ec)
-				{
-					for (auto i (i_a), n (boost::asio::ip::udp::resolver::iterator{}); i != n; ++i)
-					{
-						auto endpoint (i->endpoint ());
-						this_l->outstanding.emplace_back (endpoint.address (), endpoint.port ());
-					}
-				}
-				else
-				{
-					this_l->node.logger.try_log (boost::str (boost::format ("Error resolving work peer: %1%:%2%: %3%") % current.first % current.second % ec.message ()));
-				}
-				this_l->start ();
-			});
+			std::cout << boost::str (boost::format ("Failed to parse work peer %1%:%2%: %3%") % address.first % address.second % ec.message ()) << std::endl;
+			node.logger.try_log (boost::str (boost::format ("Failed to parse work peer %1%:%2%: %3%") % address.first % address.second % ec.message ()));
 		}
 	}
+	start_work ();
 }
 
 void nano::distributed_work::start_work ()
 {
 	auto this_l (shared_from_this ());
-
-	if (!outstanding.empty ())
+	bool any_peers = !outstanding.empty ();
+	if (any_peers)
 	{
 		nano::lock_guard<std::mutex> guard (mutex);
 		for (auto const & endpoint : outstanding)
@@ -170,7 +150,7 @@ void nano::distributed_work::start_work ()
 	}
 
 	// Start work generation if peers are not acting correctly, or if there are no peers configured
-	if ((outstanding.empty () || node.unresponsive_work_peers) && node.local_work_generation_enabled ())
+	if ((!any_peers || node.unresponsive_work_peers) && node.local_work_generation_enabled ())
 	{
 		local_generation_started = true;
 		node.work.generate (
@@ -191,8 +171,9 @@ void nano::distributed_work::start_work ()
 		},
 		request.difficulty);
 	}
-	else if (outstanding.empty () && request.callback)
+	else if (!any_peers && request.callback)
 	{
+		status = work_generation_status::failure_local;
 		request.callback (boost::none);
 	}
 }
