@@ -69,7 +69,10 @@ void nano::distributed_work::start ()
 		auto parsed_address (boost::asio::ip::make_address_v6 (current.first, ec));
 		if (!ec)
 		{
-			outstanding.emplace_back (parsed_address, current.second);
+			{
+				nano::lock_guard<std::mutex> lock (mutex);
+				outstanding.emplace_back (parsed_address, current.second);
+			}
 			start ();
 		}
 		else
@@ -80,7 +83,10 @@ void nano::distributed_work::start ()
 					for (auto i (i_a), n (boost::asio::ip::udp::resolver::iterator{}); i != n; ++i)
 					{
 						auto endpoint (i->endpoint ());
-						this_l->outstanding.emplace_back (endpoint.address (), endpoint.port ());
+						{
+							nano::lock_guard<std::mutex> lock (this_l->mutex);
+							this_l->outstanding.emplace_back (endpoint.address (), endpoint.port ());
+						}
 					}
 				}
 				else
@@ -97,7 +103,13 @@ void nano::distributed_work::start_work ()
 {
 	auto this_l (shared_from_this ());
 
-	if (!outstanding.empty ())
+	bool any_peers = false;
+	{
+		nano::lock_guard<std::mutex> guard (mutex);
+		any_peers = !outstanding.empty ();
+	}
+
+	if (any_peers)
 	{
 		nano::lock_guard<std::mutex> guard (mutex);
 		for (auto const & endpoint : outstanding)
@@ -170,7 +182,7 @@ void nano::distributed_work::start_work ()
 	}
 
 	// Start work generation if peers are not acting correctly, or if there are no peers configured
-	if ((outstanding.empty () || node.unresponsive_work_peers) && node.local_work_generation_enabled ())
+	if ((!any_peers || node.unresponsive_work_peers) && node.local_work_generation_enabled ())
 	{
 		local_generation_started = true;
 		node.work.generate (
@@ -191,7 +203,7 @@ void nano::distributed_work::start_work ()
 		},
 		request.difficulty);
 	}
-	else if (outstanding.empty () && request.callback)
+	else if (!any_peers && request.callback)
 	{
 		request.callback (boost::none);
 	}
