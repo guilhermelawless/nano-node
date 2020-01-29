@@ -16,6 +16,62 @@
 
 namespace nano
 {
+class block_details
+{
+	static_assert (std::is_same<std::underlying_type<nano::epoch>::type, uint8_t> ());
+	static_assert (static_cast<uint8_t> (nano::epoch::max) < (1 << 5));
+
+public:
+	block_details () = default;
+	block_details (nano::epoch const epoch_a, bool const is_send_a, bool const is_receive_a, bool const is_epoch_a) :
+	epoch (epoch_a), is_send (is_send_a), is_receive (is_receive_a), is_epoch (is_epoch_a)
+	{
+	}
+	static constexpr size_t size ()
+	{
+		return 1;
+	}
+	bool operator== (block_details const & other_a) const
+	{
+		return epoch == other_a.epoch && is_send == other_a.is_send && is_receive == other_a.is_receive && is_epoch == other_a.is_epoch;
+	}
+	void serialize (nano::stream &) const;
+	bool deserialize (nano::stream &);
+	nano::epoch epoch{ nano::epoch::epoch_0 };
+	bool is_send{ false };
+	bool is_receive{ false };
+	bool is_epoch{ false };
+
+private:
+	uint8_t packed () const;
+	void unpack (uint8_t);
+};
+
+class block_sideband final
+{
+public:
+	block_sideband () = default;
+	block_sideband (nano::block_type, nano::account const &, nano::block_hash const &, nano::amount const &, uint64_t, uint64_t, nano::epoch, bool is_send, bool is_receive, bool is_epoch);
+	void serialize (nano::stream &) const;
+	bool deserialize (nano::stream &);
+	static size_t size (nano::block_type);
+	nano::block_type type{ nano::block_type::invalid };
+	nano::block_hash successor{ 0 };
+	nano::account account{ 0 };
+	nano::amount balance{ 0 };
+	uint64_t height{ 0 };
+	uint64_t timestamp{ 0 };
+	nano::block_details details;
+};
+
+// Move to versioning with a specific version if required for a future upgrade
+class state_block_w_sideband
+{
+public:
+	std::shared_ptr<nano::state_block> state_block;
+	nano::block_sideband sideband;
+};
+
 /**
  * Encapsulates database specific container
  */
@@ -279,6 +335,21 @@ public:
 		return state_block_w_sideband_v14;
 	}
 
+	explicit operator nano::state_block_w_sideband () const
+	{
+		nano::bufferstream stream (reinterpret_cast<uint8_t const *> (data ()), size ());
+		auto error (false);
+		nano::state_block_w_sideband state_block_w_sideband;
+		state_block_w_sideband.state_block = std::make_shared<nano::state_block> (error, stream);
+		assert (!error);
+
+		state_block_w_sideband.sideband.type = nano::block_type::state;
+		error = state_block_w_sideband.sideband.deserialize (stream);
+		assert (!error);
+
+		return state_block_w_sideband;
+	}
+
 	explicit operator nano::no_value () const
 	{
 		return no_value::dummy;
@@ -377,22 +448,6 @@ private:
 	}
 };
 
-class block_sideband final
-{
-public:
-	block_sideband () = default;
-	block_sideband (nano::block_type, nano::account const &, nano::block_hash const &, nano::amount const &, uint64_t, uint64_t, nano::epoch);
-	void serialize (nano::stream &) const;
-	bool deserialize (nano::stream &);
-	static size_t size (nano::block_type);
-	nano::block_type type{ nano::block_type::invalid };
-	nano::block_hash successor{ 0 };
-	nano::account account{ 0 };
-	nano::amount balance{ 0 };
-	uint64_t height{ 0 };
-	uint64_t timestamp{ 0 };
-	nano::epoch epoch{ nano::epoch::epoch_0 };
-};
 class transaction;
 class block_store;
 
