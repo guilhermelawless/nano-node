@@ -790,6 +790,9 @@ void nano::mdb_store::upgrade_v17_to_v18 (nano::write_transaction const & transa
 
 	auto count_pre (count (transaction_a, state_blocks));
 
+	MDB_dbi temp_state_blocks;
+	mdb_dbi_open (env.tx (transaction_a), "temp_state_blocks", MDB_CREATE, &temp_state_blocks);
+
 	nano::network_params network_params;
 	auto num = 0u;
 	for (nano::mdb_iterator<nano::block_hash, nano::state_block_w_sideband> state_i (transaction_a, state_blocks), state_n{}; state_i != state_n; ++state_i, ++num)
@@ -830,7 +833,8 @@ void nano::mdb_store::upgrade_v17_to_v18 (nano::write_transaction const & transa
 			new_sideband.serialize (stream);
 		}
 		nano::mdb_val value{ data.size (), (void *)data.data () };
-		auto s = mdb_cursor_put (state_i.cursor, state_i->first, value, MDB_CURRENT);
+		// auto s = mdb_cursor_put (state_i.cursor, state_i->first, value, MDB_CURRENT);
+		auto s = mdb_put (env.tx (transaction_a), temp_state_blocks, nano::mdb_val (state_i->first), value, MDB_APPEND);
 		release_assert (success (s));
 
 		// Every so often output to the log to indicate progress
@@ -840,9 +844,23 @@ void nano::mdb_store::upgrade_v17_to_v18 (nano::write_transaction const & transa
 			logger.always_log (boost::str (boost::format ("Database sideband upgrade %1% million state blocks upgraded (out of %2%)") % (num / output_cutoff) % count_pre));
 		}
 	}
-
-	auto count_post (count (transaction_a, state_blocks));
+	auto count_post (count (transaction_a, temp_state_blocks));
 	release_assert (count_pre == count_post);
+
+	// Clear existing table
+	mdb_drop (env.tx (transaction_a), state_blocks, 0);
+
+	// Put values from copy
+	logger.always_log ("Database sideband upgrade all state blocks upgraded, finishing up...");
+	for (nano::mdb_iterator<nano::block_hash, nano::state_block_w_sideband> state_i (transaction_a, temp_state_blocks), state_n{}; state_i != state_n; ++state_i)
+	{
+		auto s = mdb_put (env.tx (transaction_a), state_blocks, nano::mdb_val (state_i->first), state_i->second, MDB_APPEND);
+		release_assert (success (s));
+	}
+	release_assert (count_post == count (transaction_a, state_blocks));
+
+	// Remove temporary table
+	mdb_drop (env.tx (transaction_a), temp_state_blocks, 1);
 
 	version_put (transaction_a, 18);
 	logger.always_log ("Finished upgrading the sideband");
