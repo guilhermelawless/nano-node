@@ -244,7 +244,7 @@ public:
 	error & operator= (const std::error_code code_a);
 	error & operator= (const boost::system::error_code & code_a);
 	error & operator= (const boost::system::errc::errc_t & code_a);
-	error & operator= (const std::string message_a);
+	error & operator= (std::string message_a);
 	error & operator= (std::exception const & exception_a);
 	bool operator== (const std::error_code code_a) const;
 	bool operator== (const boost::system::error_code code_a) const;

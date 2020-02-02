@@ -353,7 +353,7 @@ nano::error & nano::error::operator= (const boost::system::errc::errc_t & code_a
 }
 
 /** Set the error to nano::error_common::generic and the error message to \p message_a */
-nano::error & nano::error::operator= (const std::string message_a)
+nano::error & nano::error::operator= (std::string message_a)
 {
 	code = nano::error_common::generic;
 	message = std::move (message_a);
