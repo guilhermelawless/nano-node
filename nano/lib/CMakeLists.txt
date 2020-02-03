@@ -27,6 +27,8 @@ add_library (nano_lib
 	diagnosticsconfig.cpp
 	errors.hpp
 	errors.cpp
+	filter.hpp
+	filter.cpp
 	ipc.hpp
 	ipc.cpp
 	ipc_client.hpp
