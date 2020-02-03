@@ -1,6 +1,6 @@
 #pragma once
 
-#include <nano/secure/common.hpp>
+#include <boost/filesystem/path.hpp>
 
 namespace nano
 {

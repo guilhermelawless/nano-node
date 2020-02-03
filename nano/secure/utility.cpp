@@ -4,6 +4,9 @@
 
 #include <boost/filesystem.hpp>
 
+#include <iostream>
+#include <sstream>
+
 static std::vector<boost::filesystem::path> all_unique_paths;
 
 boost::filesystem::path nano::working_path (bool legacy)

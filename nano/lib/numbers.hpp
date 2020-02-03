@@ -339,4 +339,51 @@ struct hash<::nano::qualified_root>
 		return *reinterpret_cast<size_t const *> (data_a.bytes.data ());
 	}
 };
-}
+} // namespace std
+
+namespace boost
+{
+template <>
+struct hash<::nano::uint256_union>
+{
+	size_t operator() (::nano::uint256_union const & value_a) const
+	{
+		return std::hash<::nano::uint256_union> () (value_a);
+	}
+};
+
+template <>
+struct hash<::nano::block_hash>
+{
+	size_t operator() (::nano::block_hash const & value_a) const
+	{
+		return std::hash<::nano::block_hash> () (value_a);
+	}
+};
+
+template <>
+struct hash<::nano::public_key>
+{
+	size_t operator() (::nano::public_key const & value_a) const
+	{
+		return std::hash<::nano::public_key> () (value_a);
+	}
+};
+template <>
+struct hash<::nano::uint512_union>
+{
+	size_t operator() (::nano::uint512_union const & value_a) const
+	{
+		return std::hash<::nano::uint512_union> () (value_a);
+	}
+};
+template <>
+struct hash<::nano::qualified_root>
+{
+	size_t operator() (::nano::qualified_root const & value_a) const
+	{
+		return std::hash<::nano::qualified_root> () (value_a);
+	}
+};
+} // namespace boost
+

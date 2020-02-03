@@ -1,7 +1,7 @@
 #pragma once
 
 #include <nano/lib/blocks.hpp>
-#include <nano/secure/common.hpp>
+#include <nano/secure/epoch.hpp>
 
 struct MDB_val;
 
