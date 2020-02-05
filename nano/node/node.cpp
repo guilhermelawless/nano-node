@@ -1,3 +1,4 @@
+#include <nano/lib/stream.hpp>
 #include <nano/lib/threading.hpp>
 #include <nano/lib/utility.hpp>
 #include <nano/node/common.hpp>
@@ -943,7 +944,9 @@ void nano::node::unchecked_cleanup ()
 	}
 	if (!cleaning_list.empty ())
 	{
-		logger.always_log (boost::str (boost::format ("Deleting %1% old unchecked blocks") % cleaning_list.size ()));
+		logger.always_log (boost::str (boost::format ("Deleting %1% old unchecked blocks and clearing publish filter") % cleaning_list.size ()));
+		// Clear out duplicate filter to allow receiving these again
+		network.publish_filter.clear ();
 	}
 	// Delete old unchecked keys in batches
 	while (!cleaning_list.empty ())

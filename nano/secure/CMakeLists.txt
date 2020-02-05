@@ -45,6 +45,8 @@ add_library (secure
 	epoch.cpp
 	ledger.hpp
 	ledger.cpp
+	stream_filter.hpp
+	stream_filter.cpp
 	utility.hpp
 	utility.cpp
 	versioning.hpp

@@ -1013,20 +1013,32 @@ void nano::active_transactions::add_inactive_votes_cache (nano::block_hash const
 		}
 		else
 		{
-			inactive_votes_cache.get<nano::gap_cache::tag_arrival> ().emplace (nano::gap_information{ std::chrono::steady_clock::now (), hash_a, std::vector<nano::account> (1, representative_a) });
-			if (inactive_votes_cache.size () > inactive_votes_cache_max)
+			if (inactive_votes_cache.size () >= inactive_votes_cache_max)
 			{
-				inactive_votes_cache.get<nano::gap_cache::tag_arrival> ().erase (inactive_votes_cache.get<nano::gap_cache::tag_arrival> ().begin ());
+				node.logger.always_log ("Clearing inactive votes cache and filter");
+
+				// Erase all inactive votes
+				inactive_votes_cache.clear ();
+				// Clear out duplicate filter to allow receiving these again
+				node.network.confirm_ack_filter.clear ();
 			}
+			inactive_votes_cache.get<nano::gap_cache::tag_arrival> ().emplace (nano::gap_information{ std::chrono::steady_clock::now (), hash_a, std::vector<nano::account> (1, representative_a) });
 		}
 	}
 }
 
-nano::gap_information nano::active_transactions::find_inactive_votes_cache (nano::block_hash const & hash_a)
+nano::gap_information nano::active_transactions::find_inactive_votes_cache (nano::block_hash const & hash_a, bool erase_a)
 {
-	auto existing (inactive_votes_cache.get<nano::gap_cache::tag_hash> ().find (hash_a));
-	if (existing != inactive_votes_cache.get<nano::gap_cache::tag_hash> ().end ())
+	auto & inactive_votes_cache_by_hash (inactive_votes_cache.get<nano::gap_cache::tag_hash> ());
+	auto existing (inactive_votes_cache_by_hash.find (hash_a));
+	if (existing != inactive_votes_cache_by_hash.end ())
 	{
+		if (erase_a)
+		{
+			auto votes (std::move (*existing));
+			inactive_votes_cache_by_hash.erase (existing);
+			return votes;
+		}
 		return *existing;
 	}
 	else
