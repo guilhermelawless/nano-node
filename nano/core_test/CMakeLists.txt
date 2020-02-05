@@ -30,6 +30,7 @@ add_executable (core_test
 	request_aggregator.cpp
 	signing.cpp
 	socket.cpp
+	stream_filter.cpp
 	toml.cpp
 	timer.cpp
 	uint256_union.cpp
