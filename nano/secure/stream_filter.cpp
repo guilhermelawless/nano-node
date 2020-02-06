@@ -2,9 +2,8 @@
 #include <nano/lib/locks.hpp>
 #include <nano/secure/stream_filter.hpp>
 
-nano::stream_filter::stream_filter (size_t capacity_a) :
-capacity (capacity_a),
-items (capacity_a, item_key_t{ 0 })
+nano::stream_filter::stream_filter (size_t size_a) :
+items (size_a, item_key_t{ 0 })
 {
 	nano::random_pool::generate_block (key, key.size ());
 }
@@ -16,7 +15,7 @@ bool nano::stream_filter::operator() (bool & error_a, nano::stream & stream_a, s
 	if (!error_a)
 	{
 		nano::lock_guard<std::mutex> lock (mutex);
-		assert (capacity > 0 && items.size () == capacity);
+		assert (items.size () > 0);
 		size_t index (digest % items.size ());
 		auto & element (items[index]);
 		existed = element == digest;
@@ -58,5 +57,5 @@ nano::stream_filter::item_key_t nano::stream_filter::hash (bool & error_a, nano:
 void nano::stream_filter::clear ()
 {
 	nano::lock_guard<std::mutex> lock (mutex);
-	items.assign (capacity, item_key_t{ 0 });
+	items.assign (items.size (), item_key_t{ 0 });
 }

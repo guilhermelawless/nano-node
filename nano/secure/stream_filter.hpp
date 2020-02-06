@@ -20,7 +20,7 @@ class stream_filter final
 {
 public:
 	stream_filter () = delete;
-	stream_filter (size_t capacity_a);
+	stream_filter (size_t size_a);
 	/**
 	 * Reads \p count_a bytes from \p stream_a and inserts the siphash digest in the filter.
 	 * @note \p stream_a is rewinded back to its position before the function was called.
@@ -44,7 +44,6 @@ private:
 	 **/
 	item_key_t hash (bool & error_a, nano::stream & stream_a, size_t count_a) const;
 
-	size_t capacity;
 	std::vector<item_key_t> items;
 	CryptoPP::SecByteBlock key{ siphash_t::KEYLENGTH };
 	std::mutex mutex;
