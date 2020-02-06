@@ -27,12 +27,26 @@ public:
 	 **/
 	bool apply (uint8_t const * bytes_a, size_t count_a);
 
+	/**
+	 * Reads \p count_a bytes starting from \p bytes_a and digests the contents.
+	 * Then, sets the corresponding element in the filter to zero, if it matches the digest exactly.
+	 * @warning will read out of bounds if [ \p bytes_a, \p bytes_a + \p count_a ] is not a valid range
+	 **/
+	void clear (uint8_t const * bytes_a, size_t count_a);
+
 	/** Sets every element of the filter to zero, keeping its size and capacity. */
 	void clear ();
 
 private:
 	using siphash_t = CryptoPP::SipHash<2, 4, true>;
 	using item_key_t = nano::uint128_t;
+
+	/**
+	 * Get element from digest.
+	 * @note must have a lock on mutex
+	 * @return a reference to the element with key \p hash_a
+	 **/
+	item_key_t & get_element (item_key_t const & hash_a);
 
 	/**
 	 * Hashes \p count_a bytes starting from \p bytes_a .

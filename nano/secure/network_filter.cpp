@@ -14,9 +14,7 @@ bool nano::network_filter::apply (uint8_t const * bytes_a, size_t count_a)
 	auto digest (hash (bytes_a, count_a));
 
 	nano::lock_guard<std::mutex> lock (mutex);
-	assert (items.size () > 0);
-	size_t index (digest % items.size ());
-	auto & element (items[index]);
+	auto & element (get_element (digest));
 	bool existed (element == digest);
 	if (!existed)
 	{
@@ -26,16 +24,37 @@ bool nano::network_filter::apply (uint8_t const * bytes_a, size_t count_a)
 	return existed;
 }
 
-nano::network_filter::item_key_t nano::network_filter::hash (uint8_t const * bytes_a, size_t count_a) const
+void nano::network_filter::clear (uint8_t const * bytes_a, size_t count_a)
 {
-	nano::uint128_union digest{ 0 };
-	CryptoPP::SipHash<2, 4, true> siphash (key, static_cast<unsigned int> (key.size ()));
-	siphash.CalculateDigest (digest.bytes.data (), bytes_a, count_a);
-	return digest.number ();
+	// Get hash before locking
+	auto digest (hash (bytes_a, count_a));
+
+	nano::lock_guard<std::mutex> lock (mutex);
+	auto & element (get_element (digest));
+	if (element == digest)
+	{
+		element = item_key_t{ 0 };
+	}
 }
 
 void nano::network_filter::clear ()
 {
 	nano::lock_guard<std::mutex> lock (mutex);
 	items.assign (items.size (), item_key_t{ 0 });
+}
+
+nano::network_filter::item_key_t & nano::network_filter::get_element (item_key_t const & hash_a)
+{
+	assert (!mutex.try_lock ());
+	assert (items.size () > 0);
+	size_t index (hash_a % items.size ());
+	return items[index];
+}
+
+nano::network_filter::item_key_t nano::network_filter::hash (uint8_t const * bytes_a, size_t count_a) const
+{
+	nano::uint128_union digest{ 0 };
+	CryptoPP::SipHash<2, 4, true> siphash (key, static_cast<unsigned int> (key.size ()));
+	siphash.CalculateDigest (digest.bytes.data (), bytes_a, count_a);
+	return digest.number ();
 }

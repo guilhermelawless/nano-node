@@ -80,3 +80,18 @@ TEST (network_filter, many)
 		ASSERT_EQ (*block, *deserialized_block);
 	}
 }
+
+TEST (network_filter, clear)
+{
+	nano::network_filter filter (1);
+	std::vector<uint8_t> bytes1{ 1, 2, 3 };
+	std::vector<uint8_t> bytes2{ 1 };
+	ASSERT_FALSE (filter.apply (bytes1.data (), bytes1.size ()));
+	ASSERT_TRUE (filter.apply (bytes1.data (), bytes1.size ()));
+	filter.clear (bytes1.data (), bytes1.size ());
+	ASSERT_FALSE (filter.apply (bytes1.data (), bytes1.size ()));
+	ASSERT_TRUE (filter.apply (bytes1.data (), bytes1.size ()));
+	filter.clear (bytes2.data (), bytes2.size ());
+	ASSERT_TRUE (filter.apply (bytes1.data (), bytes1.size ()));
+	ASSERT_FALSE (filter.apply (bytes2.data (), bytes2.size ()));
+}
