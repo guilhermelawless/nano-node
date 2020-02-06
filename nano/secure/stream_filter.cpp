@@ -8,7 +8,7 @@ items (size_a, item_key_t{ 0 })
 	nano::random_pool::generate_block (key, key.size ());
 }
 
-bool nano::stream_filter::operator() (bool & error_a, nano::stream & stream_a, size_t count_a)
+bool nano::stream_filter::apply (bool & error_a, nano::stream & stream_a, size_t count_a)
 {
 	bool existed{ false };
 	auto digest (hash (error_a, stream_a, count_a));

@@ -27,7 +27,7 @@ public:
 	 * @remark \p error_a is set to true if an exception occurs when reading \p stream_a, and rewinding is not performed.
 	 * @return a boolean representing the previous existence of \p stream_a contents in the filter, or false if \p error_a was set.
 	 **/
-	bool operator() (bool & error_a, nano::stream & stream_a, size_t count_a);
+	bool apply (bool & error_a, nano::stream & stream_a, size_t count_a);
 
 	/** Sets every element of the filter to zero, keeping its size and capacity. */
 	void clear ();

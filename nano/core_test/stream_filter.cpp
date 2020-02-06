@@ -21,7 +21,7 @@ TEST (stream_filter, unit)
 		ASSERT_EQ (bytes->size (), block_a->size (block_a->type ()) + header.size);
 
 		// Now filter the rest of the stream
-		bool duplicate (filter (error, stream, bytes->size () - header.size));
+		bool duplicate (filter.apply (error, stream, bytes->size () - header.size));
 		ASSERT_EQ (expect_duplicate_a, duplicate);
 		ASSERT_FALSE (error);
 
@@ -72,7 +72,7 @@ TEST (stream_filter, many)
 
 		// Now filter the rest of the stream
 		// All blocks should pass through
-		ASSERT_FALSE (filter (error, stream, block->size));
+		ASSERT_FALSE (filter.apply (error, stream, block->size));
 		ASSERT_FALSE (error);
 
 		// Make sure the stream was rewinded correctly
