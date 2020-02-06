@@ -1024,7 +1024,7 @@ void nano::active_transactions::add_inactive_votes_cache (nano::block_hash const
 			{
 				auto oldest (inactive_votes_by_time.begin ());
 				auto node_l (node.shared ());
-				node.worker.push_task ([&node_l, votes_l = std::move (oldest->votes)]() {
+				node.worker.push_task ([node_l, votes_l = std::move (oldest->votes)]() {
 					for (auto const & vote : votes_l)
 					{
 						node_l->network.confirm_ack_filter.clear (*vote);
