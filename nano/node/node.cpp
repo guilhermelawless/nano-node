@@ -84,21 +84,18 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (bl
 {
 	size_t state_blocks_count;
 	size_t blocks_count;
-	size_t blocks_filter_count;
 	size_t forced_count;
 
 	{
 		nano::lock_guard<std::mutex> guard (block_processor.mutex);
 		state_blocks_count = block_processor.state_blocks.size ();
 		blocks_count = block_processor.blocks.size ();
-		blocks_filter_count = block_processor.blocks_filter.size ();
 		forced_count = block_processor.forced.size ();
 	}
 
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "state_blocks", state_blocks_count, sizeof (decltype (block_processor.state_blocks)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "blocks", blocks_count, sizeof (decltype (block_processor.blocks)::value_type) }));
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "blocks_filter", blocks_filter_count, sizeof (decltype (block_processor.blocks_filter)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "forced", forced_count, sizeof (decltype (block_processor.forced)::value_type) }));
 	composite->add_component (collect_container_info (block_processor.generator, "generator"));
 	return composite;
