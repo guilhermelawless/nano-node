@@ -302,14 +302,18 @@ void nano::election::insert_inactive_votes_cache (nano::block_hash const & hash_
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::vote_cached);
 		}
 	}
-	if (!confirmed && !cache.voters.empty ())
+	if (!cache.voters.empty ())
 	{
-		auto delay (std::chrono::duration_cast<std::chrono::seconds> (std::chrono::steady_clock::now () - cache.arrival));
-		if (delay > late_blocks_delay)
+		node.active.erase_inactive_votes_cache (hash_a);
+		if (!confirmed)
 		{
-			node.stats.inc (nano::stat::type::election, nano::stat::detail::late_block);
-			node.stats.add (nano::stat::type::election, nano::stat::detail::late_block_seconds, nano::stat::dir::in, delay.count (), true);
+			auto delay (std::chrono::duration_cast<std::chrono::seconds> (std::chrono::steady_clock::now () - cache.arrival));
+			if (delay > late_blocks_delay)
+			{
+				node.stats.inc (nano::stat::type::election, nano::stat::detail::late_block);
+				node.stats.add (nano::stat::type::election, nano::stat::detail::late_block_seconds, nano::stat::dir::in, delay.count (), true);
+			}
+			confirm_if_quorum ();
 		}
-		confirm_if_quorum ();
 	}
 }

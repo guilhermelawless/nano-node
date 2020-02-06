@@ -803,6 +803,12 @@ bool nano::bootstrap_attempt::confirm_frontiers (nano::unique_lock<std::mutex> &
 		{
 			node->logger.always_log (boost::str (boost::format ("Failed to confirm frontiers for bootstrap attempt. %1% of %2% frontiers were not confirmed") % frontiers.size () % frontiers_count));
 		}
+		// Clear from inactive votes cache
+		nano::lock_guard<std::mutex> active_guard (node->active.mutex);
+		for (auto const & hash : frontiers)
+		{
+			node->active.erase_inactive_votes_cache (hash);
+		}
 	}
 	lock_a.lock ();
 	return confirmed;

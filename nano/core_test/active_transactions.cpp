@@ -495,7 +495,7 @@ TEST (active_transactions, inactive_votes_cache_multiple_votes)
 	{
 		{
 			nano::lock_guard<std::mutex> active_guard (node.active.mutex);
-			if (node.active.find_inactive_votes_cache (send1->hash (), false).voters.size () == 2)
+			if (node.active.find_inactive_votes_cache (send1->hash ()).voters.size () == 2)
 			{
 				break;
 			}

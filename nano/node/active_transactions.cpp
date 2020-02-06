@@ -1027,18 +1027,12 @@ void nano::active_transactions::add_inactive_votes_cache (nano::block_hash const
 	}
 }
 
-nano::gap_information nano::active_transactions::find_inactive_votes_cache (nano::block_hash const & hash_a, bool erase_a)
+nano::gap_information nano::active_transactions::find_inactive_votes_cache (nano::block_hash const & hash_a)
 {
 	auto & inactive_votes_cache_by_hash (inactive_votes_cache.get<nano::gap_cache::tag_hash> ());
 	auto existing (inactive_votes_cache_by_hash.find (hash_a));
 	if (existing != inactive_votes_cache_by_hash.end ())
 	{
-		if (erase_a)
-		{
-			auto votes (std::move (*existing));
-			inactive_votes_cache_by_hash.erase (existing);
-			return votes;
-		}
 		return *existing;
 	}
 	else
@@ -1049,11 +1043,7 @@ nano::gap_information nano::active_transactions::find_inactive_votes_cache (nano
 
 void nano::active_transactions::erase_inactive_votes_cache (nano::block_hash const & hash_a)
 {
-	auto existing (inactive_votes_cache.get<nano::gap_cache::tag_hash> ().find (hash_a));
-	if (existing != inactive_votes_cache.get<nano::gap_cache::tag_hash> ().end ())
-	{
-		inactive_votes_cache.get<nano::gap_cache::tag_hash> ().erase (existing);
-	}
+	inactive_votes_cache.get<nano::gap_cache::tag_hash> ().erase (hash_a);
 }
 
 size_t nano::active_transactions::dropped_elections_cache_size ()
