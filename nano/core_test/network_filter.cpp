@@ -3,10 +3,10 @@
 
 #include <gtest/gtest.h>
 
-TEST (stream_filter, unit)
+TEST (network_filter, unit)
 {
 	nano::genesis genesis;
-	nano::stream_filter filter (1);
+	nano::network_filter filter (1);
 	auto one_block = [&genesis, &filter](std::shared_ptr<nano::block> const & block_a, bool expect_duplicate_a) {
 		nano::publish message (block_a);
 		auto bytes (message.to_bytes ());
@@ -21,9 +21,8 @@ TEST (stream_filter, unit)
 		ASSERT_EQ (bytes->size (), block_a->size (block_a->type ()) + header.size);
 
 		// Now filter the rest of the stream
-		bool duplicate (filter.apply (error, stream, bytes->size () - header.size));
+		bool duplicate (filter.apply (bytes->data (), bytes->size () - header.size));
 		ASSERT_EQ (expect_duplicate_a, duplicate);
-		ASSERT_FALSE (error);
 
 		// Make sure the stream was rewinded correctly
 		auto block (nano::deserialize_block (stream, header.block_type ()));
@@ -48,11 +47,11 @@ TEST (stream_filter, unit)
 	}
 }
 
-TEST (stream_filter, many)
+TEST (network_filter, many)
 {
 	nano::system system;
 	nano::genesis genesis;
-	nano::stream_filter filter (4);
+	nano::network_filter filter (4);
 	nano::keypair key1;
 	for (int i = 0; i < 100; ++i)
 	{
@@ -72,7 +71,7 @@ TEST (stream_filter, many)
 
 		// Now filter the rest of the stream
 		// All blocks should pass through
-		ASSERT_FALSE (filter.apply (error, stream, block->size));
+		ASSERT_FALSE (filter.apply (bytes->data (), block->size));
 		ASSERT_FALSE (error);
 
 		// Make sure the stream was rewinded correctly

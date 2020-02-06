@@ -7,7 +7,7 @@
 #include <nano/lib/jsonconfig.hpp>
 #include <nano/lib/memory.hpp>
 #include <nano/secure/common.hpp>
-#include <nano/secure/stream_filter.hpp>
+#include <nano/secure/network_filter.hpp>
 
 #include <bitset>
 
@@ -251,7 +251,7 @@ public:
 		duplicate_confirm_ack_message,
 		duplicate_publish_message
 	};
-	message_parser (nano::stream_filter &, nano::stream_filter &, nano::block_uniquer &, nano::vote_uniquer &, nano::message_visitor &, nano::work_pool &);
+	message_parser (nano::network_filter &, nano::network_filter &, nano::block_uniquer &, nano::vote_uniquer &, nano::message_visitor &, nano::work_pool &);
 	void deserialize_buffer (uint8_t const *, size_t);
 	void deserialize_keepalive (nano::stream &, nano::message_header const &);
 	void deserialize_publish (nano::stream &, nano::message_header const &);
@@ -261,8 +261,8 @@ public:
 	void deserialize_telemetry_req (nano::stream &, nano::message_header const &);
 	void deserialize_telemetry_ack (nano::stream &, nano::message_header const &);
 	bool at_end (nano::stream &);
-	nano::stream_filter & publish_filter;
-	nano::stream_filter & confirm_ack_filter;
+	nano::network_filter & publish_filter;
+	nano::network_filter & confirm_ack_filter;
 	nano::block_uniquer & block_uniquer;
 	nano::vote_uniquer & vote_uniquer;
 	nano::message_visitor & visitor;

@@ -23,6 +23,7 @@ add_executable (core_test
 	message_parser.cpp
 	memory_pool.cpp
 	network.cpp
+	network_filter.cpp
 	node.cpp
 	node_telemetry.cpp
 	processor_service.cpp
@@ -30,7 +31,6 @@ add_executable (core_test
 	request_aggregator.cpp
 	signing.cpp
 	socket.cpp
-	stream_filter.cpp
 	toml.cpp
 	timer.cpp
 	uint256_union.cpp

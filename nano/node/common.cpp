@@ -323,7 +323,7 @@ std::string nano::message_parser::status_string ()
 	return "[unknown parse_status]";
 }
 
-nano::message_parser::message_parser (nano::stream_filter & publish_filter_a, nano::stream_filter & confirm_ack_filter_a, nano::block_uniquer & block_uniquer_a, nano::vote_uniquer & vote_uniquer_a, nano::message_visitor & visitor_a, nano::work_pool & pool_a) :
+nano::message_parser::message_parser (nano::network_filter & publish_filter_a, nano::network_filter & confirm_ack_filter_a, nano::block_uniquer & block_uniquer_a, nano::vote_uniquer & vote_uniquer_a, nano::message_visitor & visitor_a, nano::work_pool & pool_a) :
 publish_filter (publish_filter_a),
 confirm_ack_filter (confirm_ack_filter_a),
 block_uniquer (block_uniquer_a),
@@ -361,13 +361,13 @@ void nano::message_parser::deserialize_buffer (uint8_t const * buffer_a, size_t 
 					}
 					case nano::message_type::publish:
 					{
-						if (!publish_filter.apply (error, stream, size_a - header.size) && !error)
+						if (!publish_filter.apply (buffer_a + header.size, size_a - header.size))
 						{
 							deserialize_publish (stream, header);
 						}
 						else
 						{
-							status = error ? parse_status::invalid_publish_message : parse_status::duplicate_publish_message;
+							status = parse_status::duplicate_publish_message;
 						}
 						break;
 					}
@@ -378,13 +378,13 @@ void nano::message_parser::deserialize_buffer (uint8_t const * buffer_a, size_t 
 					}
 					case nano::message_type::confirm_ack:
 					{
-						if (!confirm_ack_filter.apply (error, stream, size_a - header.size) && !error)
+						if (!confirm_ack_filter.apply (buffer_a + header.size, size_a - header.size))
 						{
 							deserialize_confirm_ack (stream, header);
 						}
 						else
 						{
-							status = error ? parse_status::invalid_confirm_ack_message : parse_status::duplicate_confirm_ack_message;
+							status = parse_status::duplicate_confirm_ack_message;
 						}
 						break;
 					}
