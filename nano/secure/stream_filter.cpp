@@ -11,7 +11,7 @@ items (capacity_a, item_key_t{ 0 })
 
 bool nano::stream_filter::operator() (bool & error_a, nano::stream & stream_a)
 {
-	bool existed;
+	bool existed{ false };
 	auto digest (hash (error_a, stream_a));
 	if (!error_a)
 	{

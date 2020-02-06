@@ -25,7 +25,7 @@ public:
 	 * Reads \p stream_a and inserts its siphash digest in the filter.
 	 * @note \p stream_a is rewinded back to its position before the function was called.
 	 * @remark \p error_a is set to true if an exception occurs when reading \p stream_a, and rewinding is not performed.
-	 * @return a boolean representing the previous existance of \p stream_a contents in the filter.
+	 * @return a boolean representing the previous existance of \p stream_a contents in the filter, or false if \p error_a was set.
 	 **/
 	bool operator() (bool & error_a, nano::stream & stream_a);
 
