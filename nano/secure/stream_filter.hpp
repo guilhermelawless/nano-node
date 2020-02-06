@@ -15,6 +15,7 @@ namespace nano
  * A probabilistic duplicate filter based on directed map caches, using SipHash 2/4/128
  * The probability of false negatives (unique packet marked as duplicate) is the probability of a 128-bit SipHash collision.
  * The probability of false positives (duplicate packet marked as unique) shrinks with a larger filter.
+ * @note This class is thread-safe.
  */
 class stream_filter final
 {
