@@ -32,7 +32,10 @@ bool nano::stream_filter::operator() (bool & error_a, nano::stream & stream_a, s
 nano::stream_filter::item_key_t nano::stream_filter::hash (bool & error_a, nano::stream & stream_a, size_t count_a) const
 {
 	nano::uint128_union digest{ 0 };
-	uint8_t buffer[count_a];
+	// SipHash updates on 64-bit words, so a right-padded buffer is used
+	auto rem (count_a % 8);
+	uint8_t buffer[rem == 0 ? count_a : count_a + 8 - rem];
+	assert (sizeof (buffer) < (count_a + 8));
 	try
 	{
 		auto amount_read (stream_a.sgetn (buffer, count_a));
