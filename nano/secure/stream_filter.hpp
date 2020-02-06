@@ -22,12 +22,12 @@ public:
 	stream_filter () = delete;
 	stream_filter (size_t capacity_a);
 	/**
-	 * Reads \p stream_a and inserts its siphash digest in the filter.
+	 * Reads \p count_a bytes from \p stream_a and inserts the siphash digest in the filter.
 	 * @note \p stream_a is rewinded back to its position before the function was called.
 	 * @remark \p error_a is set to true if an exception occurs when reading \p stream_a, and rewinding is not performed.
-	 * @return a boolean representing the previous existance of \p stream_a contents in the filter, or false if \p error_a was set.
+	 * @return a boolean representing the previous existence of \p stream_a contents in the filter, or false if \p error_a was set.
 	 **/
-	bool operator() (bool & error_a, nano::stream & stream_a);
+	bool operator() (bool & error_a, nano::stream & stream_a, size_t count_a);
 
 	/** Sets every element of the filter to zero, keeping its size and capacity. */
 	void clear ();
@@ -37,12 +37,12 @@ private:
 	using item_key_t = nano::uint128_t;
 
 	/**
-	 * Reads \p stream_a until end of stream and hashes the resulting contents.
+	 * Reads \p count_a bytes from \p stream_a and hashes the resulting contents.
 	 * Then, \p stream_a is rewinded back to its position before the function was called.
 	 * @remark \p error_a is set to true if an exception occurs when reading \p stream_a, and rewinding is not performed.
-	 * @return the siphash digest of the contents in \p stream_a .
+	 * @return the siphash digest of the contents in \p stream_a , or zero if \p error_a was set.
 	 **/
-	item_key_t hash (bool & error_a, nano::stream & stream_a) const;
+	item_key_t hash (bool & error_a, nano::stream & stream_a, size_t count_a) const;
 
 	size_t capacity;
 	std::vector<item_key_t> items;

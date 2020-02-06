@@ -9,10 +9,10 @@ items (capacity_a, item_key_t{ 0 })
 	nano::random_pool::generate_block (key, key.size ());
 }
 
-bool nano::stream_filter::operator() (bool & error_a, nano::stream & stream_a)
+bool nano::stream_filter::operator() (bool & error_a, nano::stream & stream_a, size_t count_a)
 {
 	bool existed{ false };
-	auto digest (hash (error_a, stream_a));
+	auto digest (hash (error_a, stream_a, count_a));
 	if (!error_a)
 	{
 		nano::lock_guard<std::mutex> lock (mutex);
@@ -29,29 +29,25 @@ bool nano::stream_filter::operator() (bool & error_a, nano::stream & stream_a)
 	return existed;
 }
 
-nano::stream_filter::item_key_t nano::stream_filter::hash (bool & error_a, nano::stream & stream_a) const
+nano::stream_filter::item_key_t nano::stream_filter::hash (bool & error_a, nano::stream & stream_a, size_t count_a) const
 {
-	CryptoPP::SipHash<2, 4, true> siphash (key, key.size ());
-	nano::uint128_union digest;
+	nano::uint128_union digest{ 0 };
+	uint8_t buffer[count_a];
 	try
 	{
-		std::array<uint8_t, 8> buffer;
-		size_t bytes_read;
-		size_t total_read{ 0 };
-		do
-		{
-			bytes_read = stream_a.sgetn (buffer.data (), buffer.size ());
-			total_read += bytes_read;
-			siphash.Update (buffer.data (), bytes_read);
-		} while (bytes_read == buffer.size ());
-
+		auto amount_read (stream_a.sgetn (buffer, count_a));
+		error_a = amount_read != count_a;
 		// Rewind stream to previous state
-		stream_a.pubseekoff (-total_read, std::ios_base::cur);
-		siphash.Final (digest.bytes.data ());
+		stream_a.pubseekoff (-amount_read, std::ios_base::cur);
 	}
 	catch (std::runtime_error const &)
 	{
 		error_a = true;
+	}
+	if (!error_a)
+	{
+		CryptoPP::SipHash<2, 4, true> siphash (key, key.size ());
+		siphash.CalculateDigest (digest.bytes.data (), buffer, count_a);
 	}
 	return digest.number ();
 }

@@ -404,7 +404,7 @@ void nano::bootstrap_server::receive_publish_action (boost::system::error_code c
 	{
 		auto error (false);
 		nano::bufferstream stream (receive_buffer->data (), size_a);
-		if (!node->network.publish_filter (error, stream) && !error)
+		if (!node->network.publish_filter (error, stream, size_a) && !error)
 		{
 			auto request (std::make_unique<nano::publish> (error, stream, header_a));
 			if (!error)
@@ -459,7 +459,7 @@ void nano::bootstrap_server::receive_confirm_ack_action (boost::system::error_co
 	{
 		auto error (false);
 		nano::bufferstream stream (receive_buffer->data (), size_a);
-		if (!node->network.confirm_ack_filter (error, stream) && !error)
+		if (!node->network.confirm_ack_filter (error, stream, size_a) && !error)
 		{
 			auto request (std::make_unique<nano::confirm_ack> (error, stream, header_a));
 			if (!error)

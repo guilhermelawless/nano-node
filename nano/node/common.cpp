@@ -361,7 +361,7 @@ void nano::message_parser::deserialize_buffer (uint8_t const * buffer_a, size_t 
 					}
 					case nano::message_type::publish:
 					{
-						if (!publish_filter (error, stream) && !error)
+						if (!publish_filter (error, stream, size_a - header.size) && !error)
 						{
 							deserialize_publish (stream, header);
 						}
@@ -378,7 +378,7 @@ void nano::message_parser::deserialize_buffer (uint8_t const * buffer_a, size_t 
 					}
 					case nano::message_type::confirm_ack:
 					{
-						if (!confirm_ack_filter (error, stream) && !error)
+						if (!confirm_ack_filter (error, stream, size_a - header.size) && !error)
 						{
 							deserialize_confirm_ack (stream, header);
 						}
