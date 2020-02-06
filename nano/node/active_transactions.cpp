@@ -1027,12 +1027,7 @@ void nano::active_transactions::add_inactive_votes_cache (nano::block_hash const
 				node.worker.push_task ([&node_l, votes_l = std::move (oldest->votes)]() {
 					for (auto const & vote : votes_l)
 					{
-						std::vector<uint8_t> bytes;
-						{
-							nano::vectorstream stream (bytes);
-							vote->serialize (stream);
-						}
-						node_l->network.confirm_ack_filter.clear (bytes.data (), bytes.size ());
+						node_l->network.confirm_ack_filter.clear (*vote);
 					}
 				});
 				inactive_votes_by_time.erase (oldest);

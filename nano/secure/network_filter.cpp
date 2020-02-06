@@ -1,5 +1,7 @@
 #include <nano/crypto_lib/random_pool.hpp>
 #include <nano/lib/locks.hpp>
+#include <nano/secure/buffer.hpp>
+#include <nano/secure/common.hpp>
 #include <nano/secure/network_filter.hpp>
 
 nano::network_filter::network_filter (size_t size_a) :
@@ -37,6 +39,17 @@ void nano::network_filter::clear (uint8_t const * bytes_a, size_t count_a)
 	}
 }
 
+template <typename OBJECT>
+void nano::network_filter::clear (OBJECT const & object_a)
+{
+	std::vector<uint8_t> bytes;
+	{
+		nano::vectorstream stream (bytes);
+		object_a.serialize (stream);
+	}
+	clear (bytes.data (), bytes.size ());
+}
+
 void nano::network_filter::clear ()
 {
 	nano::lock_guard<std::mutex> lock (mutex);
@@ -58,3 +71,7 @@ nano::network_filter::item_key_t nano::network_filter::hash (uint8_t const * byt
 	siphash.CalculateDigest (digest.bytes.data (), bytes_a, count_a);
 	return digest.number ();
 }
+
+// Explicitly instantiate
+template void nano::network_filter::clear (nano::vote const &);
+template void nano::network_filter::clear (nano::block const &);

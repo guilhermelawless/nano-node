@@ -964,12 +964,7 @@ void nano::node::unchecked_cleanup ()
 	// Delete from the duplicate filter
 	for (auto const & block : blocks)
 	{
-		std::vector<uint8_t> bytes;
-		{
-			nano::vectorstream stream (bytes);
-			block->serialize (stream);
-		}
-		network.publish_filter.clear (bytes.data (), bytes.size ());
+		network.publish_filter.clear (*block);
 	}
 }
 

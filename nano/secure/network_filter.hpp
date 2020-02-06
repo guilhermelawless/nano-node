@@ -34,6 +34,13 @@ public:
 	 **/
 	void clear (uint8_t const * bytes_a, size_t count_a);
 
+	/**
+	 * Serializes \p object_a and runs clears the resulting siphash digest.
+	 * @return a boolean representing the previous existence of the hash in the filter.
+	 **/
+	template <typename OBJECT>
+	void clear (OBJECT const & object_a);
+
 	/** Sets every element of the filter to zero, keeping its size and capacity. */
 	void clear ();
 
