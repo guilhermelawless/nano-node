@@ -204,7 +204,7 @@ private:
 	void prioritize_account_for_confirmation (prioritize_num_uncemented &, size_t &, nano::account const &, nano::account_info const &, uint64_t);
 	static size_t constexpr max_priority_cementable_frontiers{ 100000 };
 	static size_t constexpr confirmed_frontiers_max_pending_cut_off{ 1000 };
-	static size_t constexpr inactive_votes_cache_max{ 16 * 1024 };
+	static size_t constexpr inactive_votes_cache_max{ 4 * 1024 };
 	// clang-format off
 	boost::multi_index_container<nano::election_timepoint,
 	mi::indexed_by<
