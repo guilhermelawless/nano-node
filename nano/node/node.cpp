@@ -923,6 +923,7 @@ void nano::node::bootstrap_wallet ()
 
 void nano::node::unchecked_cleanup ()
 {
+	std::vector<std::shared_ptr<nano::block>> blocks;
 	std::deque<nano::unchecked_key> cleaning_list;
 	auto attempt (bootstrap_initiator.current_attempt ());
 	bool long_attempt (attempt != nullptr && std::chrono::duration_cast<std::chrono::seconds> (std::chrono::steady_clock::now () - attempt->attempt_start).count () > config.unchecked_cutoff_time.count ());
@@ -938,15 +939,14 @@ void nano::node::unchecked_cleanup ()
 			nano::unchecked_info const & info (i->second);
 			if ((now - info.modified) > static_cast<uint64_t> (config.unchecked_cutoff_time.count ()))
 			{
+				blocks.push_back (info.block);
 				cleaning_list.push_back (key);
 			}
 		}
 	}
 	if (!cleaning_list.empty ())
 	{
-		logger.always_log (boost::str (boost::format ("Deleting %1% old unchecked blocks and clearing publish filter") % cleaning_list.size ()));
-		// Clear out duplicate filter to allow receiving these again
-		network.publish_filter.clear ();
+		logger.always_log (boost::str (boost::format ("Deleting %1% old unchecked blocks") % cleaning_list.size ()));
 	}
 	// Delete old unchecked keys in batches
 	while (!cleaning_list.empty ())
@@ -963,6 +963,16 @@ void nano::node::unchecked_cleanup ()
 				--ledger.cache.unchecked_count;
 			}
 		}
+	}
+	// Delete from the duplicate filter
+	for (auto const & block : blocks)
+	{
+		std::vector<uint8_t> bytes;
+		{
+			nano::vectorstream stream (bytes);
+			block->serialize (stream);
+		}
+		network.publish_filter.clear (bytes.data (), bytes.size ());
 	}
 }
 
