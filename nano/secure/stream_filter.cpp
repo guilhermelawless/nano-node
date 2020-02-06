@@ -31,10 +31,10 @@ bool nano::stream_filter::operator() (bool & error_a, nano::stream & stream_a, s
 nano::stream_filter::item_key_t nano::stream_filter::hash (bool & error_a, nano::stream & stream_a, size_t count_a) const
 {
 	nano::uint128_union digest{ 0 };
-	uint8_t buffer[count_a];
+	std::vector<uint8_t> buffer (count_a);
 	try
 	{
-		auto amount_read (stream_a.sgetn (buffer, count_a));
+		auto amount_read (stream_a.sgetn (buffer.data (), count_a));
 		error_a = amount_read != count_a;
 		// Rewind stream to previous state
 		stream_a.pubseekoff (-amount_read, std::ios_base::cur);
@@ -45,8 +45,8 @@ nano::stream_filter::item_key_t nano::stream_filter::hash (bool & error_a, nano:
 	}
 	if (!error_a)
 	{
-		CryptoPP::SipHash<2, 4, true> siphash (key, key.size ());
-		siphash.CalculateDigest (digest.bytes.data (), buffer, count_a);
+		CryptoPP::SipHash<2, 4, true> siphash (key, static_cast<unsigned int> (key.size ()));
+		siphash.CalculateDigest (digest.bytes.data (), buffer.data (), count_a);
 	}
 	return digest.number ();
 }
