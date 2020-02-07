@@ -98,7 +98,7 @@ public:
 	~network ();
 	void start ();
 	void stop ();
-	void flood_message (nano::message const &, bool const = true);
+	void flood_message (nano::message const &, bool const = true, float const = 1.0f);
 	void flood_keepalive ()
 	{
 		nano::keepalive message;

@@ -28,6 +28,7 @@ bool nano::confirmation_solicitor::broadcast (nano::election const & election_a)
 	{
 		nano::publish message (election_a.status.winner);
 		unsigned count = 0;
+		// Directed broadcasting to get confirmations
 		for (auto i (representatives.begin ()), n (representatives.end ()); i != n && count < max_representatives; ++i)
 		{
 			if (election_a.last_votes.find (i->account) == election_a.last_votes.end ())
@@ -36,6 +37,8 @@ bool nano::confirmation_solicitor::broadcast (nano::election const & election_a)
 				++count;
 			}
 		}
+		// Random flood for block propagation
+		network.flood_message (message, true, 0.5f);
 		error = false;
 	}
 	return error;

@@ -216,9 +216,9 @@ bool nano::network::send_votes_cache (std::shared_ptr<nano::transport::channel> 
 	return result;
 }
 
-void nano::network::flood_message (nano::message const & message_a, bool const is_droppable_a)
+void nano::network::flood_message (nano::message const & message_a, bool const is_droppable_a, float const scale_a)
 {
-	for (auto & i : list (fanout ()))
+	for (auto & i : list (fanout (scale_a)))
 	{
 		i->send (message_a, nullptr, is_droppable_a);
 	}
