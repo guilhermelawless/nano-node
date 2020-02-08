@@ -254,9 +254,9 @@ public:
 	message_parser (nano::network_filter &, nano::network_filter &, nano::block_uniquer &, nano::vote_uniquer &, nano::message_visitor &, nano::work_pool &);
 	void deserialize_buffer (uint8_t const *, size_t);
 	void deserialize_keepalive (nano::stream &, nano::message_header const &);
-	void deserialize_publish (nano::stream &, nano::message_header const &);
+	void deserialize_publish (nano::stream &, nano::message_header const &, boost::optional<nano::uint128_t const &> && = boost::none);
 	void deserialize_confirm_req (nano::stream &, nano::message_header const &);
-	void deserialize_confirm_ack (nano::stream &, nano::message_header const &);
+	void deserialize_confirm_ack (nano::stream &, nano::message_header const &, boost::optional<nano::uint128_t const &> && = boost::none);
 	void deserialize_node_id_handshake (nano::stream &, nano::message_header const &);
 	void deserialize_telemetry_req (nano::stream &, nano::message_header const &);
 	void deserialize_telemetry_ack (nano::stream &, nano::message_header const &);
@@ -286,13 +286,14 @@ public:
 class publish final : public message
 {
 public:
-	publish (bool &, nano::stream &, nano::message_header const &, nano::block_uniquer * = nullptr);
+	publish (bool &, nano::stream &, nano::message_header const &, boost::optional<nano::uint128_t const &> && = boost::none, nano::block_uniquer * = nullptr);
 	explicit publish (std::shared_ptr<nano::block>);
 	void visit (nano::message_visitor &) const override;
 	void serialize (nano::stream &) const override;
 	bool deserialize (nano::stream &, nano::block_uniquer * = nullptr);
 	bool operator== (nano::publish const &) const;
 	std::shared_ptr<nano::block> block;
+	boost::optional<nano::uint128_t> digest;
 };
 class confirm_req final : public message
 {
@@ -313,13 +314,14 @@ public:
 class confirm_ack final : public message
 {
 public:
-	confirm_ack (bool &, nano::stream &, nano::message_header const &, nano::vote_uniquer * = nullptr);
+	confirm_ack (bool &, nano::stream &, nano::message_header const &, boost::optional<nano::uint128_t const &> && = boost::none, nano::vote_uniquer * = nullptr);
 	explicit confirm_ack (std::shared_ptr<nano::vote>);
 	void serialize (nano::stream &) const override;
 	void visit (nano::message_visitor &) const override;
 	bool operator== (nano::confirm_ack const &) const;
 	std::shared_ptr<nano::vote> vote;
 	static size_t size (nano::block_type, size_t = 0);
+	boost::optional<nano::uint128_t> digest;
 };
 class frontier_req final : public message
 {

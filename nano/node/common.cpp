@@ -361,9 +361,10 @@ void nano::message_parser::deserialize_buffer (uint8_t const * buffer_a, size_t 
 					}
 					case nano::message_type::publish:
 					{
-						if (!publish_filter.apply (buffer_a + header.size, size_a - header.size))
+						nano::uint128_t digest;
+						if (!publish_filter.apply (buffer_a + header.size, size_a - header.size, &digest))
 						{
-							deserialize_publish (stream, header);
+							deserialize_publish (stream, header, digest);
 						}
 						else
 						{
@@ -378,9 +379,10 @@ void nano::message_parser::deserialize_buffer (uint8_t const * buffer_a, size_t 
 					}
 					case nano::message_type::confirm_ack:
 					{
-						if (!confirm_ack_filter.apply (buffer_a + header.size, size_a - header.size))
+						nano::uint128_t digest;
+						if (!confirm_ack_filter.apply (buffer_a + header.size, size_a - header.size, &digest))
 						{
-							deserialize_confirm_ack (stream, header);
+							deserialize_confirm_ack (stream, header, digest);
 						}
 						else
 						{
@@ -432,10 +434,10 @@ void nano::message_parser::deserialize_keepalive (nano::stream & stream_a, nano:
 	}
 }
 
-void nano::message_parser::deserialize_publish (nano::stream & stream_a, nano::message_header const & header_a)
+void nano::message_parser::deserialize_publish (nano::stream & stream_a, nano::message_header const & header_a, boost::optional<nano::uint128_t const &> && digest_a)
 {
 	auto error (false);
-	nano::publish incoming (error, stream_a, header_a, &block_uniquer);
+	nano::publish incoming (error, stream_a, header_a, std::move (digest_a), &block_uniquer);
 	if (!error && at_end (stream_a))
 	{
 		if (!nano::work_validate (*incoming.block))
@@ -474,10 +476,10 @@ void nano::message_parser::deserialize_confirm_req (nano::stream & stream_a, nan
 	}
 }
 
-void nano::message_parser::deserialize_confirm_ack (nano::stream & stream_a, nano::message_header const & header_a)
+void nano::message_parser::deserialize_confirm_ack (nano::stream & stream_a, nano::message_header const & header_a, boost::optional<nano::uint128_t const &> && digest_a)
 {
 	auto error (false);
-	nano::confirm_ack incoming (error, stream_a, header_a, &vote_uniquer);
+	nano::confirm_ack incoming (error, stream_a, header_a, std::move (digest_a), &vote_uniquer);
 	if (!error && at_end (stream_a))
 	{
 		for (auto & vote_block : incoming.vote->blocks)
@@ -613,8 +615,9 @@ bool nano::keepalive::operator== (nano::keepalive const & other_a) const
 	return peers == other_a.peers;
 }
 
-nano::publish::publish (bool & error_a, nano::stream & stream_a, nano::message_header const & header_a, nano::block_uniquer * uniquer_a) :
-message (header_a)
+nano::publish::publish (bool & error_a, nano::stream & stream_a, nano::message_header const & header_a, boost::optional<nano::uint128_t const &> && digest_a, nano::block_uniquer * uniquer_a) :
+message (header_a),
+digest (std::move (digest_a))
 {
 	if (!error_a)
 	{
@@ -794,9 +797,10 @@ size_t nano::confirm_req::size (nano::block_type type_a, size_t count)
 	return result;
 }
 
-nano::confirm_ack::confirm_ack (bool & error_a, nano::stream & stream_a, nano::message_header const & header_a, nano::vote_uniquer * uniquer_a) :
+nano::confirm_ack::confirm_ack (bool & error_a, nano::stream & stream_a, nano::message_header const & header_a, boost::optional<nano::uint128_t const &> && digest_a, nano::vote_uniquer * uniquer_a) :
 message (header_a),
-vote (nano::make_shared<nano::vote> (error_a, stream_a, header.block_type ()))
+vote (nano::make_shared<nano::vote> (error_a, stream_a, header.block_type ())),
+digest (std::move (digest_a))
 {
 	if (!error_a && uniquer_a)
 	{

@@ -402,11 +402,12 @@ void nano::bootstrap_server::receive_publish_action (boost::system::error_code c
 {
 	if (!ec)
 	{
-		if (!node->network.publish_filter.apply (receive_buffer->data (), size_a))
+		nano::uint128_t digest;
+		if (!node->network.publish_filter.apply (receive_buffer->data (), size_a, &digest))
 		{
 			auto error (false);
 			nano::bufferstream stream (receive_buffer->data (), size_a);
-			auto request (std::make_unique<nano::publish> (error, stream, header_a));
+			auto request (std::make_unique<nano::publish> (error, stream, header_a, digest));
 			if (!error)
 			{
 				if (is_realtime_connection ())
@@ -457,11 +458,12 @@ void nano::bootstrap_server::receive_confirm_ack_action (boost::system::error_co
 {
 	if (!ec)
 	{
-		if (!node->network.confirm_ack_filter.apply (receive_buffer->data (), size_a))
+		nano::uint128_t digest;
+		if (!node->network.confirm_ack_filter.apply (receive_buffer->data (), size_a, &digest))
 		{
 			auto error (false);
 			nano::bufferstream stream (receive_buffer->data (), size_a);
-			auto request (std::make_unique<nano::confirm_ack> (error, stream, header_a));
+			auto request (std::make_unique<nano::confirm_ack> (error, stream, header_a, digest));
 			if (!error)
 			{
 				if (is_realtime_connection ())
