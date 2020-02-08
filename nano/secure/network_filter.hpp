@@ -25,7 +25,12 @@ public:
 	 * @warning will read out of bounds if [ \p bytes_a, \p bytes_a + \p count_a ] is not a valid range
 	 * @return a boolean representing the previous existence of the hash in the filter.
 	 **/
-	bool apply (uint8_t const * bytes_a, size_t count_a);
+	bool apply (uint8_t const * bytes_a, size_t count_a, nano::uint128_t * digest_a = nullptr);
+
+	/**
+	 * Sets the corresponding element in the filter to zero, if it matches \p digest_a exactly.
+	 **/
+	void clear (nano::uint128_t const & digest_a);
 
 	/**
 	 * Reads \p count_a bytes starting from \p bytes_a and digests the contents.
@@ -46,22 +51,21 @@ public:
 
 private:
 	using siphash_t = CryptoPP::SipHash<2, 4, true>;
-	using item_key_t = nano::uint128_t;
 
 	/**
 	 * Get element from digest.
 	 * @note must have a lock on mutex
 	 * @return a reference to the element with key \p hash_a
 	 **/
-	item_key_t & get_element (item_key_t const & hash_a);
+	nano::uint128_t & get_element (nano::uint128_t const & hash_a);
 
 	/**
 	 * Hashes \p count_a bytes starting from \p bytes_a .
 	 * @return the siphash digest of the contents in \p bytes_a .
 	 **/
-	item_key_t hash (uint8_t const * bytes_a, size_t count_a) const;
+	nano::uint128_t hash (uint8_t const * bytes_a, size_t count_a) const;
 
-	std::vector<item_key_t> items;
+	std::vector<nano::uint128_t> items;
 	CryptoPP::SecByteBlock key{ siphash_t::KEYLENGTH };
 	std::mutex mutex;
 };
