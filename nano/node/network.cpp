@@ -443,6 +443,10 @@ public:
 		}
 		else
 		{
+			if (message_a.digest.is_initialized ())
+			{
+				node.network.publish_filter.clear (*message_a.digest);
+			}
 			node.stats.inc (nano::stat::type::drop, nano::stat::detail::publish, nano::stat::dir::in);
 		}
 	}
