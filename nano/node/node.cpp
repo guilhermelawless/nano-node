@@ -964,7 +964,7 @@ void nano::node::unchecked_cleanup ()
 	// Delete from the duplicate filter
 	for (auto const & block : blocks)
 	{
-		network.publish_filter.clear (*block);
+		network.publish_filter.clear (block);
 	}
 }
 

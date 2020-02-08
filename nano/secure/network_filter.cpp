@@ -51,7 +51,7 @@ void nano::network_filter::clear (OBJECT const & object_a)
 	std::vector<uint8_t> bytes;
 	{
 		nano::vectorstream stream (bytes);
-		object_a.serialize (stream);
+		object_a->serialize (stream);
 	}
 	clear (bytes.data (), bytes.size ());
 }
@@ -79,5 +79,5 @@ nano::uint128_t nano::network_filter::hash (uint8_t const * bytes_a, size_t coun
 }
 
 // Explicitly instantiate
-template void nano::network_filter::clear (nano::vote const &);
-template void nano::network_filter::clear (nano::block const &);
+template void nano::network_filter::clear (std::shared_ptr<nano::vote> const &);
+template void nano::network_filter::clear (std::shared_ptr<nano::block> const &);
