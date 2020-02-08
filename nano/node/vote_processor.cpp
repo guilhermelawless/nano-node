@@ -15,7 +15,7 @@
 
 #include <boost/format.hpp>
 
-nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano::active_transactions & active_a, nano::node_observers & observers_a, nano::stat & stats_a, nano::node_config & config_a, nano::logger_mt & logger_a, nano::online_reps & online_reps_a, nano::ledger & ledger_a, nano::network_params & network_params_a) :
+nano::vote_processor::vote_processor (nano::signature_checker & checker_a, nano::active_transactions & active_a, nano::node_observers & observers_a, nano::stat & stats_a, nano::node_config & config_a, nano::logger_mt & logger_a, nano::online_reps & online_reps_a, nano::ledger & ledger_a, nano::network_params & network_params_a, nano::network & network_a) :
 checker (checker_a),
 active (active_a),
 observers (observers_a),
@@ -25,6 +25,7 @@ logger (logger_a),
 online_reps (online_reps_a),
 ledger (ledger_a),
 network_params (network_params_a),
+network (network_a),
 started (false),
 stopped (false),
 is_active (false),
@@ -88,7 +89,7 @@ void nano::vote_processor::process_loop ()
 	}
 }
 
-void nano::vote_processor::vote (std::shared_ptr<nano::vote> vote_a, std::shared_ptr<nano::transport::channel> channel_a)
+void nano::vote_processor::vote (std::shared_ptr<nano::vote> vote_a, std::shared_ptr<nano::transport::channel> channel_a, boost::optional<nano::uint128_t const &> && digest_a)
 {
 	nano::unique_lock<std::mutex> lock (mutex);
 	if (!stopped)
@@ -135,6 +136,10 @@ void nano::vote_processor::vote (std::shared_ptr<nano::vote> vote_a, std::shared
 		}
 		else
 		{
+			if (digest_a.is_initialized ())
+			{
+				network.confirm_ack_filter.clear (*digest_a);
+			}
 			stats.inc (nano::stat::type::vote, nano::stat::detail::vote_overflow);
 		}
 	}
