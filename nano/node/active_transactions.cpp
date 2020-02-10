@@ -356,6 +356,7 @@ void nano::active_transactions::request_confirm (nano::unique_lock<std::mutex> &
 		auto root_it (roots.get<tag_root> ().find (*i));
 		if (root_it != roots.get<tag_root> ().end ())
 		{
+			//TODO these votes are not being removed from the duplicate filter
 			root_it->election->clear_blocks ();
 			root_it->election->clear_dependent ();
 			roots.get<tag_root> ().erase (root_it);
