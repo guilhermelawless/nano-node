@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nano/lib/rep_weights.hpp>
+#include <nano/lib/utility.hpp>
 #include <nano/secure/blockstore.hpp>
 #include <nano/secure/buffer.hpp>
 
@@ -118,6 +119,11 @@ public:
 	{
 		nano::block_sideband sideband;
 		auto block = block_get (transaction_a, hash_a, &sideband);
+		if (block == nullptr)
+		{
+			std::cerr << "Block " << hash_a.to_string () << " not found, stacktrace:" << std::endl
+			          << nano::generate_stacktrace () << std::endl;
+		}
 		assert (block != nullptr);
 		return sideband.height;
 	}
