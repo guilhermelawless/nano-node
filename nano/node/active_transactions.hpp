@@ -102,7 +102,6 @@ public:
 	std::shared_ptr<nano::election> election (nano::qualified_root const &) const;
 	void update_difficulty (std::shared_ptr<nano::block>);
 	void adjust_difficulty (nano::block_hash const &);
-	void update_active_difficulty (nano::unique_lock<std::mutex> &);
 	uint64_t active_difficulty ();
 	uint64_t limited_active_difficulty ();
 	std::deque<std::shared_ptr<nano::block>> list_blocks ();
@@ -153,7 +152,8 @@ private:
 	std::pair<std::shared_ptr<nano::election>, bool> insert_impl (std::shared_ptr<nano::block>, std::function<void(std::shared_ptr<nano::block>)> const & = [](std::shared_ptr<nano::block>) {});
 	// clang-format on
 	void request_loop ();
-	void search_frontiers (nano::transaction const &);
+	void update_active_difficulty ();
+	void search_frontiers (nano::unique_lock<std::mutex> &);
 	void request_confirm (nano::unique_lock<std::mutex> &);
 	nano::account next_frontier_account{ 0 };
 	std::chrono::steady_clock::time_point next_frontier_check{ std::chrono::steady_clock::now () };
@@ -200,8 +200,13 @@ private:
 	bool inactive_votes_bootstrap_check (std::vector<nano::account> const &, nano::block_hash const &, bool &);
 	boost::thread thread;
 
+	friend class active_difficulty_recalculate_work_Test;
 	friend class confirmation_height_prioritize_frontiers_Test;
-	friend class confirmation_height_prioritize_frontiers_overwrite_Test;
+	friend class confirmation_height_prioritize_frontiers_Test;
+	friend class wallet_work_watcher_update_Test;
+	friend class wallet_work_watcher_generation_disabled_Test;
+	friend class wallet_work_watcher_removed_Test;
+	friend class wallet_work_watcher_cancel_Test;
 	friend std::unique_ptr<container_info_component> collect_container_info (active_transactions &, const std::string &);
 };
 

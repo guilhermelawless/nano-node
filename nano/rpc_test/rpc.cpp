@@ -7214,6 +7214,8 @@ TEST (rpc, database_txn_tracker)
 	thread.join ();
 }
 
+namespace nano
+{
 TEST (rpc, active_difficulty)
 {
 	nano::system system;
@@ -7284,6 +7286,7 @@ TEST (rpc, active_difficulty)
 			ASSERT_NO_ERROR (system.poll ());
 		}
 	}
+}
 }
 
 // This is mainly to check for threading issues with TSAN

@@ -1,5 +1,6 @@
 #include <nano/core_test/testutil.hpp>
 #include <nano/lib/jsonconfig.hpp>
+#include <nano/node/active_transactions.hpp>
 #include <nano/node/election.hpp>
 #include <nano/node/testing.hpp>
 #include <nano/node/transport/udp.hpp>
@@ -3696,7 +3697,8 @@ TEST (node, aggressive_flooding)
 		ASSERT_NO_ERROR (system.poll ());
 	}
 }
-
+namespace nano
+{
 TEST (active_difficulty, recalculate_work)
 {
 	nano::system system;
@@ -3726,10 +3728,11 @@ TEST (active_difficulty, recalculate_work)
 	}
 	node1.work_generate_blocking (*send1);
 	node1.process_active (send1);
-	node1.active.update_active_difficulty (lock);
+	node1.active.update_active_difficulty ();
 	sum = std::accumulate (node1.active.multipliers_cb.begin (), node1.active.multipliers_cb.end (), double(0));
 	ASSERT_EQ (node1.active.trended_active_difficulty, nano::difficulty::from_multiplier (sum / node1.active.multipliers_cb.size (), node1.network_params.network.publish_threshold));
 	lock.unlock ();
+}
 }
 
 namespace

@@ -1123,6 +1123,8 @@ TEST (wallet, deterministic_restore)
 	ASSERT_TRUE (wallet->exists (pub));
 }
 
+namespace nano
+{
 TEST (wallet, work_watcher_update)
 {
 	nano::system system;
@@ -1148,7 +1150,7 @@ TEST (wallet, work_watcher_update)
 		{
 			node.active.multipliers_cb.push_back (multiplier * (1.5 + i / 100.));
 		}
-		node.active.update_active_difficulty (lock);
+		node.active.update_active_difficulty ();
 	}
 	system.deadline_set (20s);
 	while (updated_difficulty1 == difficulty1 || updated_difficulty2 == difficulty2)
@@ -1173,7 +1175,10 @@ TEST (wallet, work_watcher_update)
 	ASSERT_GT (updated_difficulty1, difficulty1);
 	ASSERT_GT (updated_difficulty2, difficulty2);
 }
+}
 
+namespace nano
+{
 TEST (wallet, work_watcher_generation_disabled)
 {
 	nano::system system;
@@ -1201,7 +1206,7 @@ TEST (wallet, work_watcher_generation_disabled)
 		{
 			node.active.multipliers_cb.push_back (multiplier * (1.5 + i / 100.));
 		}
-		node.active.update_active_difficulty (lock);
+		node.active.update_active_difficulty ();
 	}
 	std::this_thread::sleep_for (5s);
 
@@ -1214,6 +1219,7 @@ TEST (wallet, work_watcher_generation_disabled)
 	}
 	ASSERT_EQ (updated_difficulty, difficulty);
 	ASSERT_TRUE (node.distributed_work.items.empty ());
+}
 }
 
 TEST (wallet, work_watcher_removed)
@@ -1237,6 +1243,8 @@ TEST (wallet, work_watcher_removed)
 	}
 }
 
+namespace nano
+{
 TEST (wallet, work_watcher_cancel)
 {
 	nano::system system;
@@ -1261,7 +1269,7 @@ TEST (wallet, work_watcher_cancel)
 		{
 			node.active.multipliers_cb.push_back (node.config.max_work_generate_multiplier);
 		}
-		node.active.update_active_difficulty (lock);
+		node.active.update_active_difficulty ();
 	}
 	// Wait for work generation to start
 	system.deadline_set (5s);
@@ -1286,4 +1294,5 @@ TEST (wallet, work_watcher_cancel)
 		lock.unlock ();
 		ASSERT_TRUE (wallet.wallets.watcher->is_watched (block1->qualified_root ()));
 	}
+}
 }
