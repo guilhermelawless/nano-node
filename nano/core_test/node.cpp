@@ -3050,21 +3050,22 @@ TEST (node, fork_invalid_block_signature)
 	auto send2 (std::make_shared<nano::send_block> (genesis.hash (), key2.pub, std::numeric_limits<nano::uint128_t>::max () - node1.config.receive_minimum.number () * 2, nano::test_genesis_key.prv, nano::test_genesis_key.pub, *system.work.generate (genesis.hash ())));
 	auto send2_corrupt (std::make_shared<nano::send_block> (*send2));
 	send2_corrupt->signature = nano::signature (123);
+	send2_corrupt->refresh ();
 	node1.process_active (send1);
-	system.deadline_set (5s);
-	while (!node1.block (send1->hash ()))
-	{
-		ASSERT_NO_ERROR (system.poll ());
-	}
+	node1.block_processor.flush ();
 	auto vote (std::make_shared<nano::vote> (nano::test_genesis_key.pub, nano::test_genesis_key.prv, 0, send2));
 	auto vote_corrupt (std::make_shared<nano::vote> (nano::test_genesis_key.pub, nano::test_genesis_key.prv, 0, send2_corrupt));
+	std::cout << "Send1 " << send1->signature.to_string ().substr (0, 5) << "\nSend2 " << send2->signature.to_string ().substr (0, 5) << "\nSend2 corrupted " << send2_corrupt->signature.to_string ().substr (0, 5) << std::endl;
+
 	node2.network.flood_vote (vote_corrupt, 1.0f);
+	system.deadline_set (5s);
 	ASSERT_NO_ERROR (system.poll ());
 	node2.network.flood_vote (vote, 1.0f);
 	while (node1.block (send1->hash ()))
 	{
 		ASSERT_NO_ERROR (system.poll ());
 	}
+	system.deadline_set (5s);
 	while (!node1.block (send2->hash ()))
 	{
 		ASSERT_NO_ERROR (system.poll ());

@@ -441,6 +441,10 @@ nano::election_vote_result nano::election::vote (nano::account rep, uint64_t seq
 				confirm_if_quorum ();
 			}
 		}
+		else
+		{
+			std::cout << "Not processed in node " << node.node_counter << std::endl;
+		}
 	}
 	return nano::election_vote_result (replay, should_process);
 }

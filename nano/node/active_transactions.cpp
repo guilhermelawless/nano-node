@@ -517,6 +517,7 @@ std::pair<std::shared_ptr<nano::election>, bool> nano::active_transactions::inse
 // Validate a vote and apply it to the current election if one exists
 nano::vote_code nano::active_transactions::vote (std::shared_ptr<nano::vote> vote_a)
 {
+	std::cout << "Node " << node.node_counter << " vote with #blocks " << vote_a->blocks.size () << std::endl;
 	// If none of the hashes are active, votes are not republished
 	bool at_least_one (false);
 	// If all hashes were recently confirmed then it is a replay
@@ -550,6 +551,7 @@ nano::vote_code nano::active_transactions::vote (std::shared_ptr<nano::vote> vot
 			else
 			{
 				auto block (boost::get<std::shared_ptr<nano::block>> (vote_block));
+				std::cout << "Node " << node.node_counter << " vote for " << block->block_signature ().to_string ().substr (0, 5) << std::endl;
 				auto existing (roots.get<tag_root> ().find (block->qualified_root ()));
 				if (existing != roots.get<tag_root> ().end ())
 				{
