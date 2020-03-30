@@ -3085,3 +3085,19 @@ TEST (ledger, epoch_2_started_flag)
 	nano::ledger ledger (node1.store, stats);
 	ASSERT_TRUE (ledger.cache.epoch_2_started.load ());
 }
+
+TEST (ledger, genesis_sideband)
+{
+	auto open (nano::genesis ().open);
+	ASSERT_TRUE (open->has_sideband ());
+	auto sideband (open->sideband ());
+	ASSERT_EQ (nano::genesis_account, sideband.account);
+	ASSERT_EQ (nano::block_hash (0), sideband.successor);
+	ASSERT_EQ (nano::genesis_amount, sideband.balance.number ());
+	ASSERT_EQ (1, sideband.height);
+	ASSERT_EQ (0, sideband.timestamp);
+	ASSERT_EQ (nano::epoch::epoch_0, sideband.details.epoch);
+	ASSERT_FALSE (sideband.details.is_epoch);
+	ASSERT_FALSE (sideband.details.is_receive);
+	ASSERT_FALSE (sideband.details.is_send);
+}
