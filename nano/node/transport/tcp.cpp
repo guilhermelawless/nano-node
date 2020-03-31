@@ -275,31 +275,34 @@ void nano::transport::tcp_channels::process_message (nano::message const & messa
 			{
 				node.network.process_message (message_a, channel);
 			}
-			else if (!node_id_a.is_zero ())
+			else if (!node.network.excluded_peers.check (endpoint_a))
 			{
-				// Add temporary channel
-				socket_a->set_writer_concurrency (nano::socket::concurrency::multi_writer);
-				auto temporary_channel (std::make_shared<nano::transport::channel_tcp> (node, socket_a));
-				debug_assert (endpoint_a == temporary_channel->get_tcp_endpoint ());
-				temporary_channel->set_node_id (node_id_a);
-				temporary_channel->set_network_version (message_a.header.version_using);
-				temporary_channel->set_last_packet_received (std::chrono::steady_clock::now ());
-				temporary_channel->set_last_packet_sent (std::chrono::steady_clock::now ());
-				temporary_channel->temporary = true;
-				debug_assert (type_a == nano::bootstrap_server_type::realtime || type_a == nano::bootstrap_server_type::realtime_response_server);
-				// Don't insert temporary channels for response_server
-				if (type_a == nano::bootstrap_server_type::realtime)
+				if (!node_id_a.is_zero ())
 				{
-					insert (temporary_channel, socket_a, nullptr);
+					// Add temporary channel
+					socket_a->set_writer_concurrency (nano::socket::concurrency::multi_writer);
+					auto temporary_channel (std::make_shared<nano::transport::channel_tcp> (node, socket_a));
+					debug_assert (endpoint_a == temporary_channel->get_tcp_endpoint ());
+					temporary_channel->set_node_id (node_id_a);
+					temporary_channel->set_network_version (message_a.header.version_using);
+					temporary_channel->set_last_packet_received (std::chrono::steady_clock::now ());
+					temporary_channel->set_last_packet_sent (std::chrono::steady_clock::now ());
+					temporary_channel->temporary = true;
+					debug_assert (type_a == nano::bootstrap_server_type::realtime || type_a == nano::bootstrap_server_type::realtime_response_server);
+					// Don't insert temporary channels for response_server
+					if (type_a == nano::bootstrap_server_type::realtime)
+					{
+						insert (temporary_channel, socket_a, nullptr);
+					}
+					node.network.process_message (message_a, temporary_channel);
 				}
-				node.network.process_message (message_a, temporary_channel);
-			}
-			else
-			{
-				// Initial node_id_handshake request without node ID
-				debug_assert (message_a.header.type == nano::message_type::node_id_handshake);
-				debug_assert (type_a == nano::bootstrap_server_type::undefined);
-				node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
+				else
+				{
+					// Initial node_id_handshake request without node ID
+					debug_assert (message_a.header.type == nano::message_type::node_id_handshake);
+					debug_assert (type_a == nano::bootstrap_server_type::undefined);
+					node.stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::in);
+				}
 			}
 		}
 	}
