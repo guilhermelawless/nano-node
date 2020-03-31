@@ -367,7 +367,7 @@ bool nano::transport::tcp_channels::reachout (nano::endpoint const & endpoint_a)
 {
 	auto tcp_endpoint (nano::transport::map_endpoint_to_tcp (endpoint_a));
 	// Don't overload single IP
-	bool error = max_ip_connections (tcp_endpoint);
+	bool error = node.network.excluded_peers.check (tcp_endpoint) || max_ip_connections (tcp_endpoint);
 	if (!error && !node.flags.disable_tcp_realtime)
 	{
 		// Don't keepalive to nodes that already sent us something
@@ -440,7 +440,7 @@ void nano::transport::tcp_channels::ongoing_keepalive ()
 		for (auto i (0); i <= random_count; ++i)
 		{
 			auto tcp_endpoint (node.network.udp_channels.bootstrap_peer (node.network_params.protocol.protocol_version_min));
-			if (tcp_endpoint != invalid_endpoint && find_channel (tcp_endpoint) == nullptr)
+			if (tcp_endpoint != invalid_endpoint && find_channel (tcp_endpoint) == nullptr && !node.network.excluded_peers.check (tcp_endpoint))
 			{
 				start_tcp (nano::transport::map_tcp_to_endpoint (tcp_endpoint));
 			}
