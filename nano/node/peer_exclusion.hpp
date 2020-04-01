@@ -16,7 +16,7 @@ class peer_exclusion final
 	public:
 		item () = delete;
 		std::chrono::steady_clock::time_point exclude_until;
-		nano::tcp_endpoint endpoint;
+		decltype (std::declval<nano::tcp_endpoint> ().address ()) address;
 		uint64_t score;
 	};
 
@@ -32,7 +32,7 @@ public:
 		mi::ordered_non_unique<mi::tag<tag_exclusion>,
 			mi::member<peer_exclusion::item, std::chrono::steady_clock::time_point, &peer_exclusion::item::exclude_until>>,
 		mi::hashed_unique<mi::tag<tag_endpoint>,
-			mi::member<peer_exclusion::item, nano::tcp_endpoint, &item::endpoint>>>>;
+			mi::member<peer_exclusion::item, decltype(peer_exclusion::item::address), &peer_exclusion::item::address>>>>;
 	// clang-format on
 
 private:
