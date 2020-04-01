@@ -64,9 +64,9 @@ size_t nano::bootstrap_listener::connection_count ()
 
 void nano::bootstrap_listener::accept_action (boost::system::error_code const & ec, std::shared_ptr<nano::socket> socket_a)
 {
-	auto connection (std::make_shared<nano::bootstrap_server> (socket_a, node.shared ()));
-	if (!node.network.excluded_peers.check (connection->remote_endpoint))
+	if (!node.network.excluded_peers.check (socket_a->remote_endpoint ()))
 	{
+		auto connection (std::make_shared<nano::bootstrap_server> (socket_a, node.shared ()));
 		nano::lock_guard<std::mutex> lock (mutex);
 		connections[connection.get ()] = connection;
 		connection->receive ();
