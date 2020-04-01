@@ -71,6 +71,10 @@ void nano::bootstrap_listener::accept_action (boost::system::error_code const & 
 		connections[connection.get ()] = connection;
 		connection->receive ();
 	}
+	else
+	{
+		node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_excluded);
+	}
 }
 
 boost::asio::ip::tcp::endpoint nano::bootstrap_listener::endpoint ()
