@@ -1060,10 +1060,9 @@ TEST (peer_exclusion, validate)
 	nano::peer_exclusion excluded_peers;
 	size_t fake_peers_count = 10;
 	auto max_size = excluded_peers.limited_size (fake_peers_count);
-	std::string const incomplete_address = "0.0.0.";
 	for (auto i = 0; i < max_size + 2; ++i)
 	{
-		nano::tcp_endpoint endpoint (boost::asio::ip::address_v6::v4_mapped (boost::asio::ip::make_address_v4 (incomplete_address + std::to_string (i))), 0);
+		nano::tcp_endpoint endpoint (boost::asio::ip::address_v6::v4_mapped (boost::asio::ip::address_v4 (i)), 0);
 		ASSERT_FALSE (excluded_peers.check (endpoint));
 		ASSERT_EQ (1, excluded_peers.add (endpoint, fake_peers_count));
 		ASSERT_FALSE (excluded_peers.check (endpoint));
@@ -1071,15 +1070,15 @@ TEST (peer_exclusion, validate)
 	// The oldest one must have been removed
 	ASSERT_EQ (max_size + 1, excluded_peers.size ());
 	auto & peers_by_endpoint (excluded_peers.peers.get<nano::peer_exclusion::tag_endpoint> ());
-	nano::tcp_endpoint oldest (boost::asio::ip::address_v6::v4_mapped (boost::asio::ip::make_address_v4 ("0.0.0.0")), 0);
+	nano::tcp_endpoint oldest (boost::asio::ip::address_v6::v4_mapped (boost::asio::ip::address_v4 (0x0)), 0);
 	ASSERT_EQ (peers_by_endpoint.end (), peers_by_endpoint.find (oldest.address ()));
 
 	auto to_seconds = [](std::chrono::steady_clock::time_point const & timepoint) {
 		return std::chrono::duration_cast<std::chrono::seconds> (timepoint.time_since_epoch ()).count ();
 	};
-	nano::tcp_endpoint first (boost::asio::ip::address_v6::v4_mapped (boost::asio::ip::make_address_v4 ("0.0.0.1")), 0);
+	nano::tcp_endpoint first (boost::asio::ip::address_v6::v4_mapped (boost::asio::ip::address_v4 (0x1)), 0);
 	ASSERT_NE (peers_by_endpoint.end (), peers_by_endpoint.find (first.address ()));
-	nano::tcp_endpoint second (boost::asio::ip::address_v6::v4_mapped (boost::asio::ip::make_address_v4 ("0.0.0.2")), 0);
+	nano::tcp_endpoint second (boost::asio::ip::address_v6::v4_mapped (boost::asio::ip::address_v4 (0x2)), 0);
 	ASSERT_EQ (false, excluded_peers.check (second));
 	ASSERT_NEAR (to_seconds (std::chrono::steady_clock::now () + excluded_peers.exclude_time_hours), to_seconds (peers_by_endpoint.find (second.address ())->exclude_until), 2);
 	ASSERT_EQ (2, excluded_peers.add (second, fake_peers_count));
