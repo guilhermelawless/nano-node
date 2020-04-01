@@ -74,6 +74,10 @@ void nano::bootstrap_listener::accept_action (boost::system::error_code const & 
 	else
 	{
 		node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_excluded);
+		if (node.config.logging.network_rejected_logging ())
+		{
+			node.logger.try_log ("Rejected connection from excluded peer ", socket_a->remote_endpoint ());
+		}
 	}
 }
 
