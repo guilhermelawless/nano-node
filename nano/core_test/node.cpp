@@ -3777,6 +3777,51 @@ TEST (node, aggressive_flooding)
 	ASSERT_EQ (1 + 2 * nodes_wallets.size () + 2, node1.ledger.cache.block_count);
 }
 
+TEST (node, election_difficulty_update)
+{
+	nano::system system;
+	nano::node_config node_config (nano::get_available_port (), system.logging);
+	node_config.enable_voting = false;
+	auto & node = *system.add_node (node_config);
+	nano::genesis genesis;
+	nano::keypair key;
+	auto send1 (std::make_shared<nano::state_block> (nano::test_genesis_key.pub, genesis.hash (), nano::test_genesis_key.pub, nano::genesis_amount - 10 * nano::xrb_ratio, key.pub, nano::test_genesis_key.prv, nano::test_genesis_key.pub, *system.work.generate (genesis.hash ())));
+	auto send1_copy (std::make_shared<nano::state_block> (*send1));
+	node.process_active (send1);
+	node.block_processor.flush ();
+	auto root (send1->qualified_root ());
+	double multiplier{ 0 };
+	ASSERT_EQ (1, node.active.size ());
+	{
+		nano::lock_guard<std::mutex> guard (node.active.mutex);
+		auto existing (node.active.roots.find (root));
+		multiplier = existing->multiplier;
+		ASSERT_EQ (node.active.normalized_multiplier (send1), multiplier);
+	}
+	// Should not update with a lower difficulty
+	send1_copy->block_work_set (0);
+	ASSERT_EQ (nano::process_result::old, node.process (*send1_copy).code);
+	ASSERT_FALSE (send1_copy->has_sideband ());
+	node.process_active (send1);
+	node.block_processor.flush ();
+	ASSERT_EQ (1, node.active.size ());
+	{
+		nano::lock_guard<std::mutex> guard (node.active.mutex);
+		auto existing (node.active.roots.find (root));
+		ASSERT_EQ (multiplier, existing->multiplier);
+	}
+	// Update work, even without a sideband it should find the block in the election and update the election multiplier
+	ASSERT_TRUE (node.work_generate_blocking (*send1_copy, send1->difficulty () + 1).is_initialized ());
+	node.process_active (send1_copy);
+	node.block_processor.flush ();
+	ASSERT_EQ (1, node.active.size ());
+	{
+		nano::lock_guard<std::mutex> guard (node.active.mutex);
+		auto existing (node.active.roots.find (root));
+		ASSERT_GT (existing->multiplier, multiplier);
+	}
+}
+
 TEST (active_multiplier, recalculate_work)
 {
 	nano::system system;
