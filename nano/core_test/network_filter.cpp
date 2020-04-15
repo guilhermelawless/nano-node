@@ -109,3 +109,60 @@ TEST (network_filter, optional_digest)
 	filter.clear (digest);
 	ASSERT_FALSE (filter.apply (bytes1.data (), bytes1.size ()));
 }
+
+TEST (network_filter, cycle)
+{
+	// Simulating a new node bootstrapping a bunch of blocks and republishing those to us
+	auto const messages = 100'000;
+	auto const filter_size = 0.5 * messages;
+	std::cout << messages / 1000 << "k messages passing through a filter of size " << filter_size / 1000 << "k" << std::endl;
+	nano::network_filter filter (filter_size);
+	filter.clear ();
+	{
+		auto copy = filter.copy ();
+		ASSERT_TRUE (std::all_of (copy.begin (), copy.end (), [](auto const x) { return x == 0; }));
+	}
+
+	// First set the filter
+	for (nano::uint128_t i = 0; i < messages; ++i)
+	{
+		nano::uint128_union x (i);
+		filter.apply (x.bytes.data (), x.bytes.size ());
+	}
+
+	auto get_nonzero = [](nano::network_filter const & filter_a) {
+		auto copy = filter_a.copy ();
+		auto non_zero_values = std::count_if (copy.begin (), copy.end (), [](auto const x) { return x != 0; });
+		return non_zero_values;
+	};
+
+	auto nonzero1 = get_nonzero (filter);
+	std::cout << "First run: " << nonzero1 << " nonzero values; the filter is " << 100. * nonzero1 / filter_size << "% used " << std::endl;
+
+	// Now record how many are filtered
+	std::array<size_t, 2> counters1{ 0, 0 };
+	for (nano::uint128_t i = 0; i < messages; ++i)
+	{
+		nano::uint128_union x (i);
+		auto existed = filter.apply (x.bytes.data (), x.bytes.size ());
+		++counters1[existed];
+	}
+	ASSERT_EQ (counters1[0] + counters1[1], messages);
+	auto nonzero2 = get_nonzero (filter);
+	ASSERT_EQ (nonzero2, nonzero1);
+
+	// Efficiency is the true positive rate
+	auto const efficiency = static_cast<float> (counters1[1]) / messages;
+
+	std::cout << "Second run: " << counters1[1] << " messages were filtered (" << 100. * efficiency << "% of " << messages << ")" << std::endl;
+
+	// Repeating the process should result in the same counters
+	std::array<size_t, 2> counters2{ 0, 0 };
+	for (nano::uint128_t i = 0; i < messages; ++i)
+	{
+		nano::uint128_union x (i);
+		auto existed = filter.apply (x.bytes.data (), x.bytes.size ());
+		++counters2[existed];
+	}
+	ASSERT_EQ (counters2[1], counters1[1]);
+}

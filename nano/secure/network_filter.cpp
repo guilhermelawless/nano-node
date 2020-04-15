@@ -97,6 +97,11 @@ nano::uint128_t nano::network_filter::hash (uint8_t const * bytes_a, size_t coun
 	return digest.number ();
 }
 
+std::vector<nano::uint128_t> nano::network_filter::copy () const
+{
+	return items;
+}
+
 // Explicitly instantiate
 template nano::uint128_t nano::network_filter::hash (std::shared_ptr<nano::block> const &) const;
 template void nano::network_filter::clear (std::shared_ptr<nano::block> const &);

@@ -62,6 +62,11 @@ public:
 	template <typename OBJECT>
 	nano::uint128_t hash (OBJECT const & object_a) const;
 
+	/**
+	 * Get a copy of the filter data
+	 */
+	std::vector<nano::uint128_t> copy () const;
+
 private:
 	using siphash_t = CryptoPP::SipHash<2, 4, true>;
 
