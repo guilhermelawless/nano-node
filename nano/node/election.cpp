@@ -43,26 +43,49 @@ void nano::election::confirm_once (nano::election_status_type type_a)
 	debug_assert (!node.active.mutex.try_lock ());
 	// This must be kept above the setting of election state, as dependent confirmed elections require up to date changes to election_winner_details
 	nano::unique_lock<std::mutex> election_winners_lk (node.active.election_winner_details_mutex);
+	debug_assert (state_m != nano::election::state_t::expired_confirmed && state_m != nano::election::state_t::expired_unconfirmed);
+	auto state = state_m.load ();
 	if (state_m.exchange (nano::election::state_t::confirmed) != nano::election::state_t::confirmed)
 	{
-		status.election_end = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::system_clock::now ().time_since_epoch ());
-		status.election_duration = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::steady_clock::now () - election_start);
-		status.confirmation_request_count = confirmation_request_count;
-		status.block_count = nano::narrow_cast<decltype (status.block_count)> (blocks.size ());
-		status.voter_count = nano::narrow_cast<decltype (status.voter_count)> (last_votes.size ());
-		status.type = type_a;
-		auto status_l (status);
-		auto node_l (node.shared ());
-		auto confirmation_action_l (confirmation_action);
-		auto this_l = shared_from_this ();
-		debug_assert (node.active.election_winner_details.find (status.winner->hash ()) == node.active.election_winner_details.cend ());
-		node.active.election_winner_details.emplace (status.winner->hash (), this_l);
-		node.active.add_recently_confirmed (status_l.winner->qualified_root (), status_l.winner->hash ());
-		node_l->process_confirmed (status_l, this_l);
-		node.background ([node_l, status_l, confirmation_action_l, this_l]() {
-			confirmation_action_l (status_l.winner);
-		});
-		adjust_dependent_difficulty ();
+		if (!confirmed_m.exchange (true))
+		{
+			status.election_end = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::system_clock::now ().time_since_epoch ());
+			status.election_duration = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::steady_clock::now () - election_start);
+			status.confirmation_request_count = confirmation_request_count;
+			status.block_count = nano::narrow_cast<decltype (status.block_count)> (blocks.size ());
+			status.voter_count = nano::narrow_cast<decltype (status.voter_count)> (last_votes.size ());
+			status.type = type_a;
+			auto status_l (status);
+			auto node_l (node.shared ());
+			auto confirmation_action_l (confirmation_action);
+			auto this_l = shared_from_this ();
+			if (!node.active.election_winner_details.emplace (status.winner->hash (), this_l).second)
+			{
+				std::cout << "Winner details were already there... state was " << static_cast<unsigned> (state) << " election took" << status.election_duration.count () << " ms" << std::endl;
+				std::cout << "blocks " << status.block_count << " voters " << status.voter_count << " type " << static_cast<unsigned> (status.type) << std::endl;
+				debug_assert (!node.block_confirmed_or_being_confirmed (node.store.tx_begin_read (), status.winner->hash ()));
+				debug_assert (false);
+			}
+			node.active.add_recently_confirmed (status_l.winner->qualified_root (), status_l.winner->hash ());
+			node_l->process_confirmed (status_l, this_l);
+			node.background ([node_l, status_l, confirmation_action_l, this_l]() {
+				confirmation_action_l (status_l.winner);
+			});
+			adjust_dependent_difficulty ();
+		}
+		else
+		{
+			status.election_end = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::system_clock::now ().time_since_epoch ());
+			status.election_duration = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::steady_clock::now () - election_start);
+			status.block_count = nano::narrow_cast<decltype (status.block_count)> (blocks.size ());
+			status.voter_count = nano::narrow_cast<decltype (status.voter_count)> (last_votes.size ());
+			status.type = type_a;
+
+			std::cout << "Election is already confirmed... state was " << static_cast<unsigned> (state) << " election took" << status.election_duration.count () << " ms" << std::endl;
+			std::cout << "blocks " << status.block_count << " voters " << status.voter_count << " type " << static_cast<unsigned> (status.type) << std::endl;
+			debug_assert (!node.block_confirmed_or_being_confirmed (node.store.tx_begin_read (), status.winner->hash ()));
+			debug_assert (false);
+		}
 	}
 }
 
@@ -276,9 +299,9 @@ bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a
 			if (base_latency () * active_duration_factor < std::chrono::steady_clock::now () - state_start)
 			{
 				state_change (nano::election::state_t::active, nano::election::state_t::backtracking);
-				lock.unlock ();
-				activate_dependencies ();
-				lock.lock ();
+				// lock.unlock ();
+				// activate_dependencies ();
+				// lock.lock ();
 			}
 			break;
 		case nano::election::state_t::backtracking:

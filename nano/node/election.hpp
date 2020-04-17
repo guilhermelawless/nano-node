@@ -51,6 +51,7 @@ private: // State management
 	static int constexpr active_duration_factor = 30;
 	static int constexpr confirmed_duration_factor = 5;
 	std::atomic<nano::election::state_t> state_m = { state_t::idle };
+	std::atomic<bool> confirmed_m{ false };
 
 	// These time points must be protected by this mutex
 	std::mutex timepoints_mutex;
