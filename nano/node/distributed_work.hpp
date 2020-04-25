@@ -67,7 +67,7 @@ class distributed_work final : public std::enable_shared_from_this<nano::distrib
 	};
 
 public:
-	distributed_work (nano::node &, nano::work_request const &, std::chrono::seconds const &);
+	distributed_work (nano::node &, nano::work_request const &, std::chrono::seconds const &, std::function<void()> const & = nullptr);
 	~distributed_work ();
 	void start ();
 	void cancel ();
@@ -110,5 +110,7 @@ private:
 	std::atomic<bool> finished{ false };
 	std::atomic<bool> stopped{ false };
 	std::atomic<bool> local_generation_started{ false };
+
+	std::function<void()> cleanup_callback;
 };
 }

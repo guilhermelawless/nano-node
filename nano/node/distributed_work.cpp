@@ -20,14 +20,15 @@ std::shared_ptr<request_type> nano::distributed_work::peer_request::get_prepared
 	return request;
 }
 
-nano::distributed_work::distributed_work (nano::node & node_a, nano::work_request const & request_a, std::chrono::seconds const & backoff_a) :
+nano::distributed_work::distributed_work (nano::node & node_a, nano::work_request const & request_a, std::chrono::seconds const & backoff_a, std::function<void()> const & cleanup_callback_a) :
 node (node_a),
 node_w (node_a.shared ()),
 request (request_a),
 backoff (backoff_a),
 strand (node_a.io_ctx.get_executor ()),
 need_resolve (request_a.peers),
-elapsed (nano::timer_state::started, "distributed work generation timer")
+elapsed (nano::timer_state::started, "distributed work generation timer"),
+cleanup_callback (cleanup_callback_a)
 {
 	debug_assert (!finished);
 	debug_assert (status == work_generation_status::ongoing);
@@ -55,6 +56,10 @@ nano::distributed_work::~distributed_work ()
 			}
 		}
 		stop_once (true);
+	}
+	if (cleanup_callback)
+	{
+		cleanup_callback ();
 	}
 }
 
@@ -372,7 +377,7 @@ void nano::distributed_work::handle_failure ()
 				bool error_l{ true };
 				if (auto node_l = node_w.lock ())
 				{
-					error_l = node_l->distributed_work.make (next_backoff, request_l);
+					error_l = node_l->distributed_work->make (next_backoff, request_l);
 				}
 				if (error_l && request_l.callback)
 				{

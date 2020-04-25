@@ -58,8 +58,8 @@ add_library (node
 	daemonconfig.cpp
 	distributed_work.hpp
 	distributed_work.cpp
-	distributed_work_factory.hpp
-	distributed_work_factory.cpp
+	distributed_work_manager.hpp
+	distributed_work_manager.cpp
 	election.hpp
 	election.cpp
 	gap_cache.hpp

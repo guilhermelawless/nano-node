@@ -10,7 +10,7 @@
 #include <nano/node/bootstrap/bootstrap_attempt.hpp>
 #include <nano/node/bootstrap/bootstrap_server.hpp>
 #include <nano/node/confirmation_height_processor.hpp>
-#include <nano/node/distributed_work_factory.hpp>
+#include <nano/node/distributed_work_manager.hpp>
 #include <nano/node/election.hpp>
 #include <nano/node/gap_cache.hpp>
 #include <nano/node/network.hpp>
@@ -158,7 +158,7 @@ public:
 	nano::node_flags flags;
 	nano::alarm & alarm;
 	nano::work_pool & work;
-	nano::distributed_work_factory distributed_work;
+	std::shared_ptr<nano::distributed_work_manager> distributed_work;
 	nano::logger_mt logger;
 	std::unique_ptr<nano::block_store> store_impl;
 	nano::block_store & store;

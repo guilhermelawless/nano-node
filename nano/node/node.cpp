@@ -96,7 +96,7 @@ stats (config.stat_config),
 flags (flags_a),
 alarm (alarm_a),
 work (work_a),
-distributed_work (*this),
+distributed_work (std::make_shared<nano::distributed_work_manager> (*this)),
 logger (config_a.logging.min_time_between_log_output),
 store_impl (nano::make_store (logger, application_path_a, flags.read_only, true, config_a.rocksdb_config, config_a.diagnostics_config.txn_tracking, config_a.block_processor_batch_max_time, config_a.lmdb_config, flags.sideband_batch_size, config_a.backup_before_upgrade, config_a.rocksdb_config.enable)),
 store (*store_impl),
@@ -331,7 +331,7 @@ node_seq (seq)
 		// Cancelling local work generation
 		observers.work_cancel.add ([this](nano::root const & root_a) {
 			this->work.cancel (root_a);
-			this->distributed_work.cancel (root_a);
+			this->distributed_work->cancel (root_a);
 		});
 
 		logger.always_log ("Node starting, version: ", NANO_VERSION_STRING);
@@ -584,7 +584,10 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (no
 	composite->add_component (collect_container_info (node.vote_uniquer, "vote_uniquer"));
 	composite->add_component (collect_container_info (node.confirmation_height_processor, "confirmation_height_processor"));
 	composite->add_component (collect_container_info (node.worker, "worker"));
-	composite->add_component (collect_container_info (node.distributed_work, "distributed_work"));
+	if (node.distributed_work)
+	{
+		composite->add_component (collect_container_info (*node.distributed_work, "distributed_work"));
+	}
 	composite->add_component (collect_container_info (node.aggregator, "request_aggregator"));
 	return composite;
 }
@@ -673,7 +676,7 @@ void nano::node::stop ()
 		write_database_queue.stop ();
 		// Cancels ongoing work generation tasks, which may be blocking other threads
 		// No tasks may wait for work generation in I/O threads, or termination signal capturing will be unable to call node::stop()
-		distributed_work.stop ();
+		distributed_work->stop ();
 		block_processor.stop ();
 		if (block_processor_thread.joinable ())
 		{
@@ -1040,7 +1043,7 @@ boost::optional<uint64_t> nano::node::work_generate_blocking (nano::block & bloc
 void nano::node::work_generate (nano::work_version const version_a, nano::root const & root_a, uint64_t difficulty_a, std::function<void(boost::optional<uint64_t>)> callback_a, boost::optional<nano::account> const & account_a, bool secondary_work_peers_a)
 {
 	auto const & peers_l (secondary_work_peers_a ? config.secondary_work_peers : config.work_peers);
-	if (distributed_work.make (version_a, root_a, peers_l, difficulty_a, callback_a, account_a))
+	if (distributed_work->make (version_a, root_a, peers_l, difficulty_a, callback_a, account_a))
 	{
 		// Error in creating the job (either stopped or work generation is not possible)
 		callback_a (boost::none);
