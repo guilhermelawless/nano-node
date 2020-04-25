@@ -57,7 +57,8 @@ nano::distributed_work::~distributed_work ()
 		}
 		stop_once (true);
 	}
-	if (cleanup_callback)
+	// If work was cancelled then the callback is not necessary and could deadlock
+	if (cleanup_callback && status != work_generation_status::cancelled)
 	{
 		cleanup_callback ();
 	}
@@ -342,6 +343,7 @@ void nano::distributed_work::cancel ()
 		{
 			request.callback (boost::none);
 		}
+		cleanup_callback = nullptr;
 		stop_once (true);
 		if (node.config.logging.work_generation_time ())
 		{

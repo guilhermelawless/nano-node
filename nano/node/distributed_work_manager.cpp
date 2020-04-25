@@ -28,8 +28,11 @@ bool nano::distributed_work_manager::make (std::chrono::seconds const & backoff_
 			auto distributed (std::make_shared<nano::distributed_work> (node, request_a, backoff_a, [this_w, identifier_l] {
 				if (auto this_l = this_w.lock ())
 				{
-					nano::lock_guard<std::mutex> guard (this_l->mutex);
-					this_l->items.get<tag_id> ().erase (identifier_l);
+					nano::unique_lock<std::mutex> lock (this_l->mutex, std::defer_lock);
+					if (lock.try_lock ())
+					{
+						this_l->items.get<tag_id> ().erase (identifier_l);
+					}
 				}
 			}));
 			{
