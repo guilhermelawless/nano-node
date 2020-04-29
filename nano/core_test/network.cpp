@@ -39,6 +39,7 @@ TEST (network, tcp_no_connect_excluded_peers)
 		ASSERT_FALSE (node0->network.excluded_peers.check (endpoint1_tcp));
 
 		// Manually cleanup previous attempt
+		node0->network.syn_cookies.purge (std::chrono::steady_clock::now ());
 		node1->network.cleanup (std::chrono::steady_clock::now ());
 		node1->network.syn_cookies.purge (std::chrono::steady_clock::now ());
 
