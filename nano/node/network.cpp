@@ -140,10 +140,11 @@ void nano::network::send_keepalive (std::shared_ptr<nano::transport::channel> ch
 	nano::keepalive message;
 	random_fill (message.peers);
 	channel_a->send (message, [](boost::system::error_code const & ec, size_t size_a) {
-		if (ec) {
+		if (ec)
+		{
 			std::cout << "ERROR" << ec << std::endl;
 		}
-		std::cout << "Keepalive sent" << std::endl;	
+		std::cout << "Keepalive sent" << std::endl;
 	});
 }
 
@@ -949,6 +950,7 @@ boost::optional<nano::uint256_union> nano::syn_cookies::assign (nano::endpoint c
 	boost::optional<nano::uint256_union> result;
 	if (ip_cookies < max_cookies_per_ip)
 	{
+		std::cout << "Have cookies left" << std::endl;
 		if (cookies.find (endpoint_a) == cookies.end ())
 		{
 			nano::uint256_union query;
@@ -958,6 +960,14 @@ boost::optional<nano::uint256_union> nano::syn_cookies::assign (nano::endpoint c
 			++ip_cookies;
 			result = query;
 		}
+		else
+		{
+			std::cout << endpoint_a << " already had a cookie" << std::endl;
+		}
+	}
+	else
+	{
+		std::cout << "Max cookies reached for this address" << std::endl;
 	}
 	return result;
 }
