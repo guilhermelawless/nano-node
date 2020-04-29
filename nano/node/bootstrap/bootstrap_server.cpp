@@ -704,6 +704,13 @@ public:
 		}
 		else
 		{
+			std::cout << "No query nor response !!!!!!!!!!!" << std::endl;
+			auto bytes = message_a.to_bytes (false);
+			for (auto byte : *bytes)
+			{
+				std::cout << std::to_string (byte) << " ";
+			}
+			std::cout << std::endl;
 			connection->finish_request_async ();
 		}
 		nano::account node_id (connection->remote_node_id);
