@@ -11,9 +11,9 @@ using namespace std::chrono_literals;
 
 TEST (network, tcp_no_connect_excluded_peers)
 {
-	for (int i = 0; i < 500; ++i)
+	for (int i = 0; i < 50; ++i)
 	{
-		std::cout << i << std::endl;
+		std::cout << "----\n";
 		nano::system system (1);
 		auto node0 (system.nodes[0]);
 		ASSERT_EQ (0, node0->network.size ());
@@ -44,10 +44,8 @@ TEST (network, tcp_no_connect_excluded_peers)
 
 		// Ensure a successful connection
 		ASSERT_EQ (0, node0->network.size ());
-		std::cout << "Merge peer!!" << std::endl;
-		system.poll_until_true (5s, [node0, node1] {
-			node1->network.merge_peer (node0->network.endpoint ());
-			return node0->network.size () == 1;
-		});
+		std::cout << "vvvv Test starts here - merge peer vvvv" << std::endl;
+		node1->network.merge_peer (node0->network.endpoint ());
+		ASSERT_TIMELY (5s, node0->network.size () == 1);
 	}
 }

@@ -66,6 +66,7 @@ void nano::bootstrap_listener::accept_action (boost::system::error_code const & 
 {
 	if (!node.network.excluded_peers.check (socket_a->remote_endpoint ()))
 	{
+		std::cout << "Connection created, receive handshake." << std::endl;
 		auto connection (std::make_shared<nano::bootstrap_server> (socket_a, node.shared ()));
 		nano::lock_guard<std::mutex> lock (mutex);
 		connections[connection.get ()] = connection;
@@ -73,6 +74,7 @@ void nano::bootstrap_listener::accept_action (boost::system::error_code const & 
 	}
 	else
 	{
+		std::cout << "Couldn't accept, peer is excluded" << std::endl;
 		node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_excluded);
 		if (node.config.logging.network_rejected_logging ())
 		{
@@ -241,6 +243,7 @@ void nano::bootstrap_server::receive_header_action (boost::system::error_code co
 				}
 				case nano::message_type::node_id_handshake:
 				{
+					std::cout << "Received handshake" << std::endl;
 					socket->async_read (receive_buffer, header.payload_length_bytes (), [this_l, header](boost::system::error_code const & ec, size_t size_a) {
 						this_l->receive_node_id_handshake_action (ec, size_a, header);
 					});
@@ -504,8 +507,10 @@ void nano::bootstrap_server::receive_node_id_handshake_action (boost::system::er
 		auto request (std::make_unique<nano::node_id_handshake> (error, stream, header_a));
 		if (!error)
 		{
+			std::cout << "Handshake looks ok" << std::endl;
 			if (type == nano::bootstrap_server_type::undefined && !node->flags.disable_tcp_realtime)
 			{
+				std::cout << "Server undefined, add request" << std::endl;
 				add_request (std::unique_ptr<nano::message> (request.release ()));
 			}
 			receive ();
@@ -639,12 +644,14 @@ public:
 	}
 	void node_id_handshake (nano::node_id_handshake const & message_a) override
 	{
+		std::cout << "Processing request node_id_handshake" << std::endl;
 		if (connection->node->config.logging.network_node_id_handshake_logging ())
 		{
 			connection->node->logger.try_log (boost::str (boost::format ("Received node_id_handshake message from %1%") % connection->remote_endpoint));
 		}
 		if (message_a.query)
 		{
+			std::cout << "Has query" << std::endl;
 			boost::optional<std::pair<nano::account, nano::signature>> response (std::make_pair (connection->node->node_id.pub, nano::sign_message (connection->node->node_id.prv, connection->node->node_id.pub, *message_a.query)));
 			debug_assert (!nano::validate_message (response->first, *message_a.query, response->second));
 			auto cookie (connection->node->network.syn_cookies.assign (nano::transport::map_tcp_to_endpoint (connection->remote_endpoint)));
@@ -655,6 +662,7 @@ public:
 				{
 					if (ec)
 					{
+						std::cout << "Error sending handshake response" << std::endl;
 						if (connection_l->node->config.logging.network_node_id_handshake_logging ())
 						{
 							connection_l->node->logger.try_log (boost::str (boost::format ("Error sending node_id_handshake to %1%: %2%") % connection_l->remote_endpoint % ec.message ()));
@@ -664,17 +672,24 @@ public:
 					}
 					else
 					{
+						std::cout << "Handshake response sent" << std::endl;
 						connection_l->node->stats.inc (nano::stat::type::message, nano::stat::detail::node_id_handshake, nano::stat::dir::out);
 						connection_l->finish_request ();
 					}
+				}
+				else
+				{
+					std::cout << "Connection not found" << std::endl;
 				}
 			});
 		}
 		else if (message_a.response)
 		{
+			std::cout << "Has response" << std::endl;
 			nano::account const & node_id (message_a.response->first);
 			if (!connection->node->network.syn_cookies.validate (nano::transport::map_tcp_to_endpoint (connection->remote_endpoint), node_id, message_a.response->second) && node_id != connection->node->node_id.pub)
 			{
+				std::cout << "Valid cookies yum, you're good to go!" << std::endl;
 				connection->remote_node_id = node_id;
 				connection->type = nano::bootstrap_server_type::realtime;
 				++connection->node->bootstrap.realtime_count;
@@ -682,6 +697,7 @@ public:
 			}
 			else
 			{
+				std::cout << "Invalid cookies :(" << std::endl;
 				// Stop invalid handshake
 				connection->stop ();
 			}
