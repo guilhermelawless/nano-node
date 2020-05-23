@@ -27,18 +27,7 @@ enum class block_origin
 	remote
 };
 
-class block_post_events
-{
-public:
-	std::deque<std::function<void()>> events;
-
-	block_post_events () = default;
-	~block_post_events ();
-	block_post_events (block_post_events const &) = delete;
-	block_post_events operator= (block_post_events const &) = delete;
-	block_post_events (std::deque<std::function<void()>> && other_events_a) noexcept :
-	events (std::move (other_events_a)){};
-};
+using block_post_events = std::deque<std::function<void()>>;
 
 /**
  * Processing blocks is a potentially long IO operation.
