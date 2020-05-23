@@ -1720,7 +1720,7 @@ TEST (node, mass_block_new)
 #ifndef NDEBUG
 	auto const num_blocks = 5000;
 #else
-	auto const num_blocks = 50000;
+	auto const num_blocks = 2000000;
 #endif
 	std::cout << num_blocks << " x4 blocks" << std::endl;
 
@@ -1737,6 +1737,11 @@ TEST (node, mass_block_new)
 		ASSERT_TIMELY (200s, node.ledger.cache.block_count == next_block_count);
 		next_block_count += num_blocks;
 		node.block_processor.flush ();
+		std::atomic<bool> post_process_done = false;
+		node.worker.push_task ([&post_process_done] {
+			post_process_done.store (true);
+		});
+		ASSERT_TIMELY (20s, post_process_done);
 		// Clear all active
 		{
 			nano::lock_guard<std::mutex> guard (node.active.mutex);
