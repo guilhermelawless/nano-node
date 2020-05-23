@@ -214,75 +214,84 @@ void nano::block_processor::process_batch (nano::unique_lock<std::mutex> & lock_
 {
 	auto scoped_write_guard = write_database_queue.wait (nano::writer::process_batch);
 	block_post_events post_events;
-	auto transaction (node.store.tx_begin_write ({ tables::accounts, nano::tables::cached_counts, nano::tables::change_blocks, tables::frontiers, tables::open_blocks, tables::pending, tables::receive_blocks, tables::representation, tables::send_blocks, tables::state_blocks, tables::unchecked }, { tables::confirmation_height }));
 	nano::timer<std::chrono::milliseconds> timer_l;
-	lock_a.lock ();
-	timer_l.start ();
-	// Processing blocks
-	unsigned number_of_blocks_processed (0), number_of_forced_processed (0);
-	while ((!blocks.empty () || !forced.empty ()) && (timer_l.before_deadline (node.config.block_processor_batch_max_time) || (number_of_blocks_processed < node.flags.block_processor_batch_size)) && !awaiting_write)
+	bool logged = false;
 	{
-		if ((blocks.size () + state_block_signature_verification.size () + forced.size () > 64) && should_log ())
+		auto transaction (node.store.tx_begin_write ({ tables::accounts, nano::tables::cached_counts, nano::tables::change_blocks, tables::frontiers, tables::open_blocks, tables::pending, tables::receive_blocks, tables::representation, tables::send_blocks, tables::state_blocks, tables::unchecked }, { tables::confirmation_height }));
+		lock_a.lock ();
+		timer_l.start ();
+		// Processing blocks
+		unsigned number_of_blocks_processed (0), number_of_forced_processed (0);
+		while ((!blocks.empty () || !forced.empty ()) && (timer_l.before_deadline (node.config.block_processor_batch_max_time) || (number_of_blocks_processed < node.flags.block_processor_batch_size)) && !awaiting_write)
 		{
-			node.logger.always_log (boost::str (boost::format ("%1% blocks (+ %2% state blocks) (+ %3% forced) in processing queue") % blocks.size () % state_block_signature_verification.size () % forced.size ()));
-		}
-		nano::unchecked_info info;
-		nano::block_hash hash (0);
-		bool force (false);
-		if (forced.empty ())
-		{
-			info = blocks.front ();
-			blocks.pop_front ();
-			hash = info.block->hash ();
-		}
-		else
-		{
-			info = nano::unchecked_info (forced.front (), 0, nano::seconds_since_epoch (), nano::signature_verification::unknown);
-			forced.pop_front ();
-			hash = info.block->hash ();
-			force = true;
-			number_of_forced_processed++;
-		}
-		lock_a.unlock ();
-		if (force)
-		{
-			auto successor (node.ledger.successor (transaction, info.block->qualified_root ()));
-			if (successor != nullptr && successor->hash () != hash)
+			if ((blocks.size () + state_block_signature_verification.size () + forced.size () > 64) && should_log ())
 			{
-				// Replace our block with the winner and roll back any dependent blocks
-				node.logger.always_log (boost::str (boost::format ("Rolling back %1% and replacing with %2%") % successor->hash ().to_string () % hash.to_string ()));
-				std::vector<std::shared_ptr<nano::block>> rollback_list;
-				if (node.ledger.rollback (transaction, successor->hash (), rollback_list))
+				node.logger.always_log (boost::str (boost::format ("%1% blocks (+ %2% state blocks) (+ %3% forced) in processing queue") % blocks.size () % state_block_signature_verification.size () % forced.size ()));
+			}
+			nano::unchecked_info info;
+			nano::block_hash hash (0);
+			bool force (false);
+			if (forced.empty ())
+			{
+				info = blocks.front ();
+				blocks.pop_front ();
+				hash = info.block->hash ();
+			}
+			else
+			{
+				info = nano::unchecked_info (forced.front (), 0, nano::seconds_since_epoch (), nano::signature_verification::unknown);
+				forced.pop_front ();
+				hash = info.block->hash ();
+				force = true;
+				number_of_forced_processed++;
+			}
+			lock_a.unlock ();
+			if (force)
+			{
+				auto successor (node.ledger.successor (transaction, info.block->qualified_root ()));
+				if (successor != nullptr && successor->hash () != hash)
 				{
-					node.logger.always_log (nano::severity_level::error, boost::str (boost::format ("Failed to roll back %1% because it or a successor was confirmed") % successor->hash ().to_string ()));
-				}
-				else
-				{
-					node.logger.always_log (boost::str (boost::format ("%1% blocks rolled back") % rollback_list.size ()));
-				}
-				// Deleting from votes cache & wallet work watcher, stop active transaction
-				for (auto & i : rollback_list)
-				{
-					node.votes_cache.remove (i->hash ());
-					node.wallets.watcher->remove (*i);
-					// Stop all rolled back active transactions except initial
-					if (i->hash () != successor->hash ())
+					// Replace our block with the winner and roll back any dependent blocks
+					node.logger.always_log (boost::str (boost::format ("Rolling back %1% and replacing with %2%") % successor->hash ().to_string () % hash.to_string ()));
+					std::vector<std::shared_ptr<nano::block>> rollback_list;
+					if (node.ledger.rollback (transaction, successor->hash (), rollback_list))
 					{
-						node.active.erase (*i);
+						node.logger.always_log (nano::severity_level::error, boost::str (boost::format ("Failed to roll back %1% because it or a successor was confirmed") % successor->hash ().to_string ()));
+					}
+					else
+					{
+						node.logger.always_log (boost::str (boost::format ("%1% blocks rolled back") % rollback_list.size ()));
+					}
+					// Deleting from votes cache & wallet work watcher, stop active transaction
+					for (auto & i : rollback_list)
+					{
+						node.votes_cache.remove (i->hash ());
+						node.wallets.watcher->remove (*i);
+						// Stop all rolled back active transactions except initial
+						if (i->hash () != successor->hash ())
+						{
+							node.active.erase (*i);
+						}
 					}
 				}
 			}
+			number_of_blocks_processed++;
+			process_one (transaction, post_events, info);
+			lock_a.lock ();
 		}
-		number_of_blocks_processed++;
-		process_one (transaction, post_events, info);
-		lock_a.lock ();
-	}
-	awaiting_write = false;
-	lock_a.unlock ();
+		awaiting_write = false;
+		lock_a.unlock ();
 
-	if (node.config.logging.timing_logging () && number_of_blocks_processed != 0 && timer_l.stop () > std::chrono::milliseconds (100))
+		if (node.config.logging.timing_logging () && number_of_blocks_processed != 0 && timer_l.stop () > std::chrono::milliseconds (100))
+		{
+			logged = true;
+			node.logger.always_log (boost::str (boost::format ("Processed %1% blocks (%2% blocks were forced) in %3% %4%") % number_of_blocks_processed % number_of_forced_processed % timer_l.value ().count () % timer_l.unit ()));
+		}
+		timer_l.restart ();
+	}
+	if (logged)
 	{
-		node.logger.always_log (boost::str (boost::format ("Processed %1% blocks (%2% blocks were forced) in %3% %4%") % number_of_blocks_processed % number_of_forced_processed % timer_l.value ().count () % timer_l.unit ()));
+		node.logger.always_log (boost::str (boost::format ("Committed all blocks in %1% %2%") % timer_l.value ().count () % timer_l.unit ()));
 	}
 
 	node.worker.push_task ([events{ std::move (post_events.events) }] {
