@@ -44,8 +44,9 @@ public:
 	bool full ();
 	bool half_full ();
 	void add (nano::unchecked_info const &, const bool = false);
-	void add (std::shared_ptr<nano::block>, uint64_t = 0);
-	void force (std::shared_ptr<nano::block>);
+	void add (std::shared_ptr<nano::block> const &, uint64_t = 0);
+	void force (std::shared_ptr<nano::block> const &);
+	void update (std::shared_ptr<nano::block> const &);
 	void wait_write ();
 	bool should_log ();
 	bool have_blocks ();
@@ -69,6 +70,7 @@ private:
 	std::chrono::steady_clock::time_point next_log;
 	std::deque<nano::unchecked_info> blocks;
 	std::deque<std::shared_ptr<nano::block>> forced;
+	std::deque<std::shared_ptr<nano::block>> updates;
 	nano::condition_variable condition;
 	nano::node & node;
 	nano::write_database_queue & write_database_queue;

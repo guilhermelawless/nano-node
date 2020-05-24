@@ -762,25 +762,14 @@ bool nano::active_transactions::restart (std::shared_ptr<nano::block> const & bl
 	if (recently_dropped.find (block_a->qualified_root ()) > std::chrono::steady_clock::now () - recently_dropped_cutoff)
 	{
 		auto hash (block_a->hash ());
-		auto read_transaction (node.store.tx_begin_read ());
-		auto ledger_block (node.store.block_get (read_transaction, hash));
-		if (ledger_block != nullptr && ledger_block->block_work () != block_a->block_work () && !node.block_confirmed_or_being_confirmed (read_transaction, hash))
+		auto transaction (node.store.tx_begin_read ());
+		auto ledger_block (node.store.block_get (transaction, hash));
+		if (ledger_block != nullptr && ledger_block->block_work () != block_a->block_work () && !node.block_confirmed_or_being_confirmed (transaction, hash))
 		{
 			if (block_a->difficulty () > ledger_block->difficulty ())
 			{
-				read_transaction.reset ();
-				auto write_transaction (node.store.tx_begin_write ());
-
-				// Re-writing the block is necessary to avoid the same work being received later to force restarting the election
-				// The existing block is re-written, not the arriving block, as that one might not have gone through a full signature check
-				ledger_block->block_work_set (block_a->block_work ());
-
-				auto block_count = node.ledger.cache.block_count.load ();
-				node.store.block_put (write_transaction, hash, *ledger_block);
-				debug_assert (node.ledger.cache.block_count.load () == block_count);
-
 				// Restart election for the upgraded block, previously dropped from elections
-				auto previous_balance = node.ledger.balance (write_transaction, ledger_block->previous ());
+				auto previous_balance = node.ledger.balance (transaction, ledger_block->previous ());
 				auto insert_result = insert (ledger_block, previous_balance);
 				if (insert_result.inserted)
 				{
@@ -789,6 +778,13 @@ bool nano::active_transactions::restart (std::shared_ptr<nano::block> const & bl
 					recently_dropped.erase (ledger_block->qualified_root ());
 					node.stats.inc (nano::stat::type::election, nano::stat::detail::election_restart);
 				}
+
+				// Re-writing the block is necessary to avoid the same work being received later to force restarting the election
+				// The existing block is re-written, not the arriving block, as that one might not have gone through a full signature check
+				ledger_block->block_work_set (block_a->block_work ());
+
+				// Queue for writing in the block processor to avoid opening a new write transaction for a single operation
+				node.block_processor.update (ledger_block);
 			}
 		}
 	}
