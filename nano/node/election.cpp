@@ -1,3 +1,4 @@
+#include <nano/lib/blockbuilders.hpp>
 #include <nano/node/confirmation_solicitor.hpp>
 #include <nano/node/election.hpp>
 #include <nano/node/network.hpp>
@@ -376,7 +377,7 @@ void nano::election::confirm_if_quorum ()
 	{
 		remove_votes (status_winner_hash_l);
 		generate_votes (winner_hash_l);
-		node.block_processor.force (block_l);
+		node.block_processor.force (nano::make_copy (block_l));
 		status.winner = block_l;
 		update_dependent ();
 		node.active.add_adjust_difficulty (winner_hash_l);
@@ -489,7 +490,10 @@ bool nano::election::publish (std::shared_ptr<nano::block> block_a)
 		else
 		{
 			result = true;
-			existing->second = block_a;
+			if (block_a->has_sideband () || !existing->second->has_sideband ())
+			{
+				existing->second = block_a;
+			}
 			if (status.winner->hash () == block_a->hash ())
 			{
 				status.winner = block_a;

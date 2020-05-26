@@ -1,7 +1,5 @@
 #include <nano/lib/blockbuilders.hpp>
 
-#include <crypto/cryptopp/osrng.h>
-
 #include <unordered_map>
 
 namespace
@@ -369,6 +367,21 @@ nano::open_block_builder & nano::open_block_builder::make_block ()
 	return *this;
 }
 
+nano::open_block_builder & nano::open_block_builder::from (nano::open_block const & other_block)
+{
+	block->work = other_block.work;
+	build_state |= build_flags::work_present;
+	block->signature = other_block.signature;
+	build_state |= build_flags::signature_present;
+	block->hashables.account = other_block.hashables.account;
+	build_state |= build_flags::account_present;
+	block->hashables.representative = other_block.hashables.representative;
+	build_state |= build_flags::representative_present;
+	block->hashables.source = other_block.hashables.source;
+	build_state |= build_flags::link_present;
+	return *this;
+}
+
 void nano::open_block_builder::validate ()
 {
 	if (!ec)
@@ -455,6 +468,19 @@ nano::change_block_builder & nano::change_block_builder::make_block ()
 	return *this;
 }
 
+nano::change_block_builder & nano::change_block_builder::from (nano::change_block const & other_block)
+{
+	block->work = other_block.work;
+	build_state |= build_flags::work_present;
+	block->signature = other_block.signature;
+	build_state |= build_flags::signature_present;
+	block->hashables.representative = other_block.hashables.representative;
+	build_state |= build_flags::representative_present;
+	block->hashables.previous = other_block.hashables.previous;
+	build_state |= build_flags::previous_present;
+	return *this;
+}
+
 void nano::change_block_builder::validate ()
 {
 	if (!ec)
@@ -516,6 +542,21 @@ nano::send_block_builder::send_block_builder ()
 nano::send_block_builder & nano::send_block_builder::make_block ()
 {
 	construct_block ();
+	return *this;
+}
+
+nano::send_block_builder & nano::send_block_builder::from (nano::send_block const & other_block)
+{
+	block->work = other_block.work;
+	build_state |= build_flags::work_present;
+	block->signature = other_block.signature;
+	build_state |= build_flags::signature_present;
+	block->hashables.balance = other_block.hashables.balance;
+	build_state |= build_flags::balance_present;
+	block->hashables.destination = other_block.hashables.destination;
+	build_state |= build_flags::link_present;
+	block->hashables.previous = other_block.hashables.previous;
+	build_state |= build_flags::previous_present;
 	return *this;
 }
 
@@ -602,6 +643,19 @@ nano::receive_block_builder::receive_block_builder ()
 nano::receive_block_builder & nano::receive_block_builder::make_block ()
 {
 	construct_block ();
+	return *this;
+}
+
+nano::receive_block_builder & nano::receive_block_builder::from (nano::receive_block const & other_block)
+{
+	block->work = other_block.work;
+	build_state |= build_flags::work_present;
+	block->signature = other_block.signature;
+	build_state |= build_flags::signature_present;
+	block->hashables.source = other_block.hashables.source;
+	build_state |= build_flags::link_present;
+	block->hashables.previous = other_block.hashables.previous;
+	build_state |= build_flags::previous_present;
 	return *this;
 }
 
@@ -711,3 +765,30 @@ template class nano::abstract_builder<nano::send_block, nano::send_block_builder
 template class nano::abstract_builder<nano::receive_block, nano::receive_block_builder>;
 template class nano::abstract_builder<nano::change_block, nano::change_block_builder>;
 template class nano::abstract_builder<nano::state_block, nano::state_block_builder>;
+
+std::unique_ptr<nano::block> nano::make_copy (std::shared_ptr<nano::block> const & block_a)
+{
+	auto result = [&block_a]() -> std::unique_ptr<nano::block> {
+		switch (block_a->type ())
+		{
+			case nano::block_type::state:
+				return nano::state_block_builder ().from (*static_cast<nano::state_block *> (block_a.get ())).build ();
+			case nano::block_type::send:
+				return nano::send_block_builder ().from (*static_cast<nano::send_block *> (block_a.get ())).build ();
+			case nano::block_type::receive:
+				return nano::receive_block_builder ().from (*static_cast<nano::receive_block *> (block_a.get ())).build ();
+			case nano::block_type::change:
+				return nano::change_block_builder ().from (*static_cast<nano::change_block *> (block_a.get ())).build ();
+			case nano::block_type::open:
+				return nano::open_block_builder ().from (*static_cast<nano::open_block *> (block_a.get ())).build ();
+			default:
+				release_assert (false);
+		}
+		return nullptr;
+	}();
+	if (block_a->has_sideband ())
+	{
+		result->sideband_set (block_a->sideband ());
+	}
+	return result;
+}

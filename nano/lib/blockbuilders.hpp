@@ -6,6 +6,9 @@
 
 namespace nano
 {
+/** Utility to return a copy of \p block_a. Also copies the sideband if it exists*/
+std::unique_ptr<nano::block> make_copy (std::shared_ptr<nano::block> const & block_a);
+
 /** Flags to track builder state */
 enum class build_flags : uint8_t
 {
@@ -130,6 +133,8 @@ class open_block_builder : public abstract_builder<nano::open_block, open_block_
 public:
 	/** Creates an open block builder by calling make_block() */
 	open_block_builder ();
+	/** Initialize from an existing block */
+	open_block_builder & from (nano::open_block const & block);
 	/** Creates a new block with fields, signature and work set to sentinel values. All fields must be set or zeroed for build() to succeed. */
 	open_block_builder & make_block ();
 	/** Sets all hashables, signature and work to zero. */
@@ -163,6 +168,8 @@ class change_block_builder : public abstract_builder<nano::change_block, change_
 public:
 	/** Create a change block builder by calling make_block() */
 	change_block_builder ();
+	/** Initialize from an existing block */
+	change_block_builder & from (nano::change_block const & block);
 	/** Creates a new block with fields, signature and work set to sentinel values. All fields must be set or zeroed for build() to succeed. */
 	change_block_builder & make_block ();
 	/** Sets all hashables, signature and work to zero. */
@@ -190,6 +197,8 @@ class send_block_builder : public abstract_builder<nano::send_block, send_block_
 public:
 	/** Creates a send block builder by calling make_block() */
 	send_block_builder ();
+	/** Initialize from an existing block */
+	send_block_builder & from (nano::send_block const & block);
 	/** Creates a new block with fields, signature and work set to sentinel values. All fields must be set or zeroed for build() to succeed. */
 	send_block_builder & make_block ();
 	/** Sets all hashables, signature and work to zero. */
@@ -223,6 +232,8 @@ class receive_block_builder : public abstract_builder<nano::receive_block, recei
 public:
 	/** Creates a receive block by calling make_block() */
 	receive_block_builder ();
+	/** Initialize from an existing block */
+	receive_block_builder & from (nano::receive_block const & block);
 	/** Creates a new block with fields, signature and work set to sentinel values. All fields must be set or zeroed for build() to succeed. */
 	receive_block_builder & make_block ();
 	/** Sets all hashables, signature and work to zero. */

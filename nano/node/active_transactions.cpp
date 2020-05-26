@@ -540,6 +540,7 @@ nano::election_insertion_result nano::active_transactions::insert_impl (std::sha
 		else
 		{
 			result.election = existing->election;
+			existing->election->publish (block_a);
 		}
 	}
 	return result;
