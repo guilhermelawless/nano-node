@@ -1333,6 +1333,7 @@ namespace transport
 	}
 }
 }
+
 TEST (node_telemetry, under_load)
 {
 	nano::system system;
@@ -1376,7 +1377,7 @@ TEST (node_telemetry, under_load)
 		static unsigned i = 0;
 		if (++i % 5000 == 0)
 		{
-			std::cout << node1->node_seq << " || count " << node1->ledger.cache.block_count << " queue " << node1->block_processor.size () << std::endl;
+			std::cout << node1->node_seq << " || count " << node1->ledger.cache.block_count << " cemented " << node1->ledger.cache.cemented_count << " queue " << node1->block_processor.size () << std::endl;
 		}
 		return true;
 	};
@@ -1391,6 +1392,8 @@ TEST (node_telemetry, under_load)
 		ASSERT_EQ (0, node->stats.count (nano::stat::type::telemetry, nano::stat::detail::unsolicited_telemetry_ack));
 		ASSERT_EQ (0, node->stats.count (nano::stat::type::telemetry, nano::stat::detail::no_response_received));
 	}
+
+	//ASSERT_TIMELY (10s, node1->bootstrap_initiator.current_attempt () == nullptr);
 }
 TEST (node_telemetry, all_peers_use_single_request_cache)
 {

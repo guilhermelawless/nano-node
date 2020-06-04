@@ -53,6 +53,7 @@ nano::write_database_queue::write_database_queue () :
 guard_finish_callback ([& queue = queue, &mutex = mutex, &cv = cv]() {
 	{
 		nano::lock_guard<std::mutex> guard (mutex);
+		release_assert (!queue.empty ());
 		queue.pop_front ();
 	}
 	cv.notify_all ();
