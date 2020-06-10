@@ -401,7 +401,7 @@ nano::process_return nano::block_processor::process_one (nano::write_transaction
 			{
 				node.logger.try_log (boost::str (boost::format ("Old for: %1%") % hash.to_string ()));
 			}
-			queue_unchecked (transaction_a, hash);
+			erase_unchecked (transaction_a, hash);
 			process_old (transaction_a, info_a.block, origin_a);
 			node.stats.inc (nano::stat::type::ledger, nano::stat::detail::old);
 			break;
@@ -514,6 +514,20 @@ void nano::block_processor::queue_unchecked (nano::write_transaction const & tra
 			--node.ledger.cache.unchecked_count;
 		}
 		add (info, true);
+	}
+	node.gap_cache.erase (hash_a);
+}
+
+void nano::block_processor::erase_unchecked (nano::write_transaction const & transaction_a, nano::block_hash const & hash_a)
+{
+	if (!node.flags.disable_block_processor_unchecked_deletion)
+	{
+		for (auto const & info : node.store.unchecked_get (transaction_a, hash_a))
+		{
+			node.store.unchecked_del (transaction_a, nano::unchecked_key (hash_a, info.block->hash ()));
+			debug_assert (node.ledger.cache.unchecked_count > 0);
+			--node.ledger.cache.unchecked_count;
+		}
 	}
 	node.gap_cache.erase (hash_a);
 }
