@@ -79,7 +79,7 @@ void nano::vote_processor::process_loop ()
 
 			if (log_this_iteration && elapsed.stop () > std::chrono::milliseconds (100))
 			{
-				logger.try_log (boost::str (boost::format ("Processed %1% votes in %2% milliseconds (rate of %3% votes per second)") % votes_l.size () % elapsed.value ().count () % ((votes_l.size () * 1000ULL) / elapsed.value ().count ())));
+				std::cout << (boost::str (boost::format ("Processed %1% votes in %2% milliseconds (rate of %3% votes per second)") % votes_l.size () % elapsed.value ().count () % ((votes_l.size () * 1000ULL) / elapsed.value ().count ()))) << std::endl;
 			}
 		}
 		else

@@ -68,7 +68,7 @@ private:
 	nano::condition_variable condition;
 	std::mutex mutex;
 	bool started;
-	bool stopped;
+	std::atomic<bool> stopped;
 	bool is_active;
 	std::thread thread;
 

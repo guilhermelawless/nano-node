@@ -679,8 +679,8 @@ void nano::node::stop ()
 			block_processor_thread.join ();
 		}
 		aggregator.stop ();
-		vote_processor.stop ();
 		active.stop ();
+		vote_processor.stop ();
 		confirmation_height_processor.stop ();
 		network.stop ();
 		if (telemetry)

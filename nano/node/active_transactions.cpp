@@ -225,7 +225,9 @@ void nano::active_transactions::request_confirm (nano::unique_lock<std::mutex> &
 
 	// Only representatives ready to receive batched confirm_req
 	nano::confirmation_solicitor solicitor (node.network, node.network_params.network);
+	auto const pre_prepare = std::chrono::steady_clock::now ();
 	solicitor.prepare (node.rep_crawler.principal_representatives (std::numeric_limits<size_t>::max ()));
+	auto solicitor_prepare = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::steady_clock::now () - pre_prepare);
 
 	nano::vote_generator_session generator_session (generator);
 	auto & sorted_roots_l (roots.get<tag_difficulty> ());
@@ -235,6 +237,7 @@ void nano::active_transactions::request_confirm (nano::unique_lock<std::mutex> &
 	size_t unconfirmed_count_l (0);
 	nano::timer<std::chrono::milliseconds> elapsed (nano::timer_state::started);
 
+	auto const pre_loop = std::chrono::steady_clock::now ();
 	/*
 	 * Loop through active elections in descending order of proof-of-work difficulty, requesting confirmation
 	 *
@@ -265,6 +268,8 @@ void nano::active_transactions::request_confirm (nano::unique_lock<std::mutex> &
 		}
 	}
 	lock_a.unlock ();
+	auto loop = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::steady_clock::now () - pre_loop);
+	std::cout << "Prepare " << solicitor_prepare.count () << " loop " << loop.count () << " ms" << std::endl;
 	solicitor.flush ();
 	generator_session.flush ();
 	lock_a.lock ();
@@ -416,18 +421,46 @@ void nano::active_transactions::request_loop ()
 
 	while (!stopped && !node.flags.disable_request_loop)
 	{
+		auto const pre_sleep_l = std::chrono::steady_clock::now ();
+
 		// Account for the time spent in request_confirm by defining the wakeup point beforehand
-		const auto wakeup_l (std::chrono::steady_clock::now () + std::chrono::milliseconds (node.network_params.network.request_interval_ms));
+		auto wakeup_l (std::chrono::steady_clock::now () + std::chrono::milliseconds (node.network_params.network.request_interval_ms));
 
 		update_adjusted_multiplier ();
+		const auto adjusted_point_l = std::chrono::steady_clock::now ();
+		const auto adjusted_time_l = std::chrono::duration_cast<std::chrono::milliseconds> (adjusted_point_l - pre_sleep_l);
+
 		// frontiers_confirmation should be above update_active_multiplier to ensure new sorted roots are updated
 		frontiers_confirmation (lock);
+		const auto frontiers_point_l = std::chrono::steady_clock::now ();
+		const auto frontiers_time_l = std::chrono::duration_cast<std::chrono::milliseconds> (frontiers_point_l - adjusted_point_l);
+
 		update_active_multiplier (lock);
+		const auto active_point_l = std::chrono::steady_clock::now ();
+		const auto active_time_l = std::chrono::duration_cast<std::chrono::milliseconds> (active_point_l - frontiers_point_l);
+
 		request_confirm (lock);
+		const auto request_point_l = std::chrono::steady_clock::now ();
+		const auto request_time_l = std::chrono::duration_cast<std::chrono::milliseconds> (request_point_l - active_point_l);
 
 		// Sleep until all broadcasts are done, plus the remaining loop time
 		if (!stopped)
 		{
+			const auto loop_time_l = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::steady_clock::now () - pre_sleep_l);
+			if (loop_time_l > std::chrono::milliseconds (node.network_params.network.request_interval_ms))
+			{
+				std::cout << "Loop took" << loop_time_l.count () << " ms , with " << roots.size () << " roots" << std::endl;
+				std::cout << "\tadjusted " << adjusted_time_l.count () << " ms\n"
+				          << "\tfrontiers " << frontiers_time_l.count () << " ms\n"
+				          << "\tactive " << active_time_l.count () << " ms\n"
+				          << "\trequest " << request_time_l.count () << " ms\n"
+				          << std::endl;
+			}
+
+			if (std::chrono::steady_clock::now () > wakeup_l)
+			{
+				wakeup_l = std::chrono::steady_clock::now () + std::chrono::milliseconds (100);
+			}
 			condition.wait_until (lock, wakeup_l, [&wakeup_l, &stopped = stopped] { return stopped || std::chrono::steady_clock::now () >= wakeup_l; });
 		}
 	}
