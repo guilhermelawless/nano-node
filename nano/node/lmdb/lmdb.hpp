@@ -221,12 +221,12 @@ public:
 	boost::optional<nano::mdb_val> block_raw_get_by_type_v14 (nano::transaction const & transaction_a, nano::block_hash const & hash_a, nano::block_type & type_a, bool * is_state_v1) const;
 
 private:
-	bool do_upgrades (nano::write_transaction &, bool &);
-	void upgrade_v14_to_v15 (nano::write_transaction &);
+	bool do_upgrades (nano::write_transaction &, bool &, bool const);
+	void upgrade_v14_to_v15 (nano::write_transaction &, bool const);
 	void upgrade_v15_to_v16 (nano::write_transaction const &);
-	void upgrade_v16_to_v17 (nano::write_transaction const &);
-	void upgrade_v17_to_v18 (nano::write_transaction const &);
-	void upgrade_v18_to_v19 (nano::write_transaction const & transaction_a);
+	void upgrade_v16_to_v17 (nano::write_transaction const &, bool const);
+	void upgrade_v17_to_v18 (nano::write_transaction const &, bool const);
+	void upgrade_v18_to_v19 (nano::write_transaction const &, bool const);
 
 	std::shared_ptr<nano::block> block_get_v18 (nano::transaction const & transaction_a, nano::block_hash const & hash_a) const;
 	nano::mdb_val block_raw_get_v18 (nano::transaction const & transaction_a, nano::block_hash const & hash_a, nano::block_type & type_a) const;

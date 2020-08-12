@@ -84,15 +84,21 @@ txn_tracking_enabled (txn_tracking_config_a.enable)
 				open_databases (error, transaction, MDB_CREATE);
 				if (!error)
 				{
-					error |= do_upgrades (transaction, needs_vacuuming);
+					error |= do_upgrades (transaction, needs_vacuuming, is_fresh_db);
 				}
 			}
 
 			if (needs_vacuuming && !network_constants.is_dev_network ())
 			{
-				logger.always_log ("Preparing vacuum...");
+				if (!is_fresh_db)
+				{
+					logger.always_log ("Preparing vacuum...");
+				}
 				auto vacuum_success = vacuum_after_upgrade (path_a, lmdb_config_a);
-				logger.always_log (vacuum_success ? "Vacuum succeeded." : "Failed to vacuum. (Optional) Ensure enough disk space is available for a copy of the database and try to vacuum after shutting down the node");
+				if (!is_fresh_db || !vacuum_success)
+				{
+					logger.always_log (vacuum_success ? "Vacuum succeeded." : "Failed to vacuum. (Optional) Ensure enough disk space is available for a copy of the database and try to vacuum after shutting down the node");
+				}
 			}
 		}
 		else
@@ -223,7 +229,7 @@ void nano::mdb_store::open_databases (bool & error_a, nano::transaction const & 
 	}
 }
 
-bool nano::mdb_store::do_upgrades (nano::write_transaction & transaction_a, bool & needs_vacuuming)
+bool nano::mdb_store::do_upgrades (nano::write_transaction & transaction_a, bool & needs_vacuuming, bool const is_fresh_db)
 {
 	auto error (false);
 	auto version_l = version_get (transaction_a);
@@ -246,19 +252,24 @@ bool nano::mdb_store::do_upgrades (nano::write_transaction & transaction_a, bool
 			error = true;
 			break;
 		case 14:
-			upgrade_v14_to_v15 (transaction_a);
+			upgrade_v14_to_v15 (transaction_a, !is_fresh_db);
 			needs_vacuuming = true;
+			[[fallthrough]];
 		case 15:
 			// Upgrades to v16, v17 & v18 are all part of the v21 node release
 			upgrade_v15_to_v16 (transaction_a);
+			[[fallthrough]];
 		case 16:
-			upgrade_v16_to_v17 (transaction_a);
+			upgrade_v16_to_v17 (transaction_a, !is_fresh_db);
+			[[fallthrough]];
 		case 17:
-			upgrade_v17_to_v18 (transaction_a);
+			upgrade_v17_to_v18 (transaction_a, !is_fresh_db);
 			needs_vacuuming = true;
+			[[fallthrough]];
 		case 18:
-			upgrade_v18_to_v19 (transaction_a);
+			upgrade_v18_to_v19 (transaction_a, !is_fresh_db);
 			needs_vacuuming = true;
+			[[fallthrough]];
 		case 19:
 			break;
 		default:
@@ -269,9 +280,12 @@ bool nano::mdb_store::do_upgrades (nano::write_transaction & transaction_a, bool
 	return error;
 }
 
-void nano::mdb_store::upgrade_v14_to_v15 (nano::write_transaction & transaction_a)
+void nano::mdb_store::upgrade_v14_to_v15 (nano::write_transaction & transaction_a, bool const should_log_a)
 {
-	logger.always_log ("Preparing v14 to v15 database upgrade...");
+	if (should_log_a)
+	{
+		logger.always_log ("Preparing v14 to v15 database upgrade...");
+	}
 
 	std::vector<std::pair<nano::account, nano::account_info>> account_infos;
 	upgrade_counters account_counters (count (transaction_a, accounts_v0), count (transaction_a, accounts_v1));
@@ -293,7 +307,10 @@ void nano::mdb_store::upgrade_v14_to_v15 (nano::write_transaction & transaction_
 		i_account.from_first_database ? ++account_counters.after_v0 : ++account_counters.after_v1;
 	}
 
-	logger.always_log ("Finished extracting confirmation height to its own database");
+	if (should_log_a)
+	{
+		logger.always_log ("Finished extracting confirmation height to its own database");
+	}
 
 	debug_assert (account_counters.are_equal ());
 	// No longer need accounts_v1, keep v0 but clear it
@@ -306,7 +323,10 @@ void nano::mdb_store::upgrade_v14_to_v15 (nano::write_transaction & transaction_
 		mdb_put (env.tx (transaction_a), accounts, nano::mdb_val (account_account_info_pair.first), nano::mdb_val (account_info), MDB_APPEND);
 	}
 
-	logger.always_log ("Epoch merge upgrade: Finished accounts, now doing state blocks");
+	if (should_log_a)
+	{
+		logger.always_log ("Epoch merge upgrade: Finished accounts, now doing state blocks");
+	}
 
 	account_infos.clear ();
 
@@ -341,7 +361,7 @@ void nano::mdb_store::upgrade_v14_to_v15 (nano::write_transaction & transaction_
 
 		// Every so often output to the log to indicate progress
 		constexpr auto output_cutoff = 1000000;
-		if (num % output_cutoff == 0 && num != 0)
+		if (should_log_a && num % output_cutoff == 0 && num != 0)
 		{
 			logger.always_log (boost::str (boost::format ("Database epoch merge upgrade %1% million state blocks upgraded") % (num / output_cutoff)));
 		}
@@ -349,7 +369,10 @@ void nano::mdb_store::upgrade_v14_to_v15 (nano::write_transaction & transaction_
 	}
 
 	debug_assert (state_counters.are_equal ());
-	logger.always_log ("Epoch merge upgrade: Finished state blocks, now doing pending blocks");
+	if (should_log_a)
+	{
+		logger.always_log ("Epoch merge upgrade: Finished state blocks, now doing pending blocks");
+	}
 
 	state_blocks = state_blocks_new;
 
@@ -384,7 +407,10 @@ void nano::mdb_store::upgrade_v14_to_v15 (nano::write_transaction & transaction_
 	}
 
 	version_put (transaction_a, 15);
-	logger.always_log ("Finished epoch merge upgrade");
+	if (should_log_a)
+	{
+		logger.always_log ("Finished epoch merge upgrade");
+	}
 }
 
 void nano::mdb_store::upgrade_v15_to_v16 (nano::write_transaction const & transaction_a)
@@ -400,9 +426,12 @@ void nano::mdb_store::upgrade_v15_to_v16 (nano::write_transaction const & transa
 	version_put (transaction_a, 16);
 }
 
-void nano::mdb_store::upgrade_v16_to_v17 (nano::write_transaction const & transaction_a)
+void nano::mdb_store::upgrade_v16_to_v17 (nano::write_transaction const & transaction_a, bool const should_log_a)
 {
-	logger.always_log ("Preparing v16 to v17 database upgrade...");
+	if (should_log_a)
+	{
+		logger.always_log ("Preparing v16 to v17 database upgrade...");
+	}
 
 	auto account_info_i = latest_begin (transaction_a);
 	auto account_info_n = latest_end ();
@@ -460,7 +489,7 @@ void nano::mdb_store::upgrade_v16_to_v17 (nano::write_transaction const & transa
 
 		// Every so often output to the log to indicate progress (every 200k accounts)
 		constexpr auto output_cutoff = 200000;
-		if (num % output_cutoff == 0 && num != 0)
+		if (should_log_a && num % output_cutoff == 0 && num != 0)
 		{
 			logger.always_log (boost::str (boost::format ("Confirmation height frontier set for %1%00k accounts") % ((num / output_cutoff) * 2)));
 		}
@@ -476,12 +505,18 @@ void nano::mdb_store::upgrade_v16_to_v17 (nano::write_transaction const & transa
 	}
 
 	version_put (transaction_a, 17);
-	logger.always_log ("Finished upgrading confirmation height frontiers");
+	if (should_log_a)
+	{
+		logger.always_log ("Finished upgrading confirmation height frontiers");
+	}
 }
 
-void nano::mdb_store::upgrade_v17_to_v18 (nano::write_transaction const & transaction_a)
+void nano::mdb_store::upgrade_v17_to_v18 (nano::write_transaction const & transaction_a, bool const should_log_a)
 {
-	logger.always_log ("Preparing v17 to v18 database upgrade...");
+	if (should_log_a)
+	{
+		logger.always_log ("Preparing v17 to v18 database upgrade...");
+	}
 
 	auto count_pre (count (transaction_a, state_blocks));
 
@@ -528,7 +563,7 @@ void nano::mdb_store::upgrade_v17_to_v18 (nano::write_transaction const & transa
 
 		// Every so often output to the log to indicate progress
 		constexpr auto output_cutoff = 1000000;
-		if (num > 0 && num % output_cutoff == 0)
+		if (should_log_a && num > 0 && num % output_cutoff == 0)
 		{
 			logger.always_log (boost::str (boost::format ("Database sideband upgrade %1% million state blocks upgraded (out of %2%)") % (num / output_cutoff) % count_pre));
 		}
@@ -538,12 +573,18 @@ void nano::mdb_store::upgrade_v17_to_v18 (nano::write_transaction const & transa
 	release_assert (count_pre == count_post);
 
 	version_put (transaction_a, 18);
-	logger.always_log ("Finished upgrading the sideband");
+	if (should_log_a)
+	{
+		logger.always_log ("Finished upgrading the sideband");
+	}
 }
 
-void nano::mdb_store::upgrade_v18_to_v19 (nano::write_transaction const & transaction_a)
+void nano::mdb_store::upgrade_v18_to_v19 (nano::write_transaction const & transaction_a, bool const should_log_a)
 {
-	logger.always_log ("Preparing v18 to v19 database upgrade...");
+	if (should_log_a)
+	{
+		logger.always_log ("Preparing v18 to v19 database upgrade...");
+	}
 	auto count_pre (count (transaction_a, state_blocks) + count (transaction_a, send_blocks) + count (transaction_a, receive_blocks) + count (transaction_a, change_blocks) + count (transaction_a, open_blocks));
 
 	// Combine in order of likeliness of counts
@@ -577,7 +618,10 @@ void nano::mdb_store::upgrade_v18_to_v19 (nano::write_transaction const & transa
 	release_assert (!mdb_drop (env.tx (transaction_a), change_blocks, 1));
 	change_blocks = 0;
 
-	logger.always_log ("Write legacy open/receive/change to new format");
+	if (should_log_a)
+	{
+		logger.always_log ("Write legacy open/receive/change to new format");
+	}
 
 	MDB_dbi temp_legacy_open_receive_change_blocks;
 	{
@@ -598,7 +642,10 @@ void nano::mdb_store::upgrade_v18_to_v19 (nano::write_transaction const & transa
 		}
 	}
 
-	logger.always_log ("Write legacy send to new format");
+	if (should_log_a)
+	{
+		logger.always_log ("Write legacy send to new format");
+	}
 
 	// Write send blocks to a new table (this was not done in memory as it would push us above memory requirements)
 	MDB_dbi temp_legacy_send_blocks;
@@ -625,7 +672,10 @@ void nano::mdb_store::upgrade_v18_to_v19 (nano::write_transaction const & transa
 	release_assert (!mdb_drop (env.tx (transaction_a), send_blocks, 1));
 	send_blocks = 0;
 
-	logger.always_log ("Merge legacy open/receive/change with legacy send blocks");
+	if (should_log_a)
+	{
+		logger.always_log ("Merge legacy open/receive/change with legacy send blocks");
+	}
 
 	MDB_dbi temp_legacy_send_open_receive_change_blocks;
 	{
@@ -644,7 +694,10 @@ void nano::mdb_store::upgrade_v18_to_v19 (nano::write_transaction const & transa
 		mdb_drop (env.tx (transaction_a), temp_legacy_open_receive_change_blocks, 1);
 	}
 
-	logger.always_log ("Write state blocks to new format");
+	if (should_log_a)
+	{
+		logger.always_log ("Write state blocks to new format");
+	}
 
 	// Write state blocks to a new table (this was not done in memory as it would push us above memory requirements)
 	MDB_dbi temp_state_blocks;
@@ -690,7 +743,10 @@ void nano::mdb_store::upgrade_v18_to_v19 (nano::write_transaction const & transa
 	release_assert (!mdb_drop (env.tx (transaction_a), state_blocks, 1));
 	state_blocks = 0;
 
-	logger.always_log ("Merging all legacy blocks with state blocks");
+	if (should_log_a)
+	{
+		logger.always_log ("Merging all legacy blocks with state blocks");
+	}
 
 	// Merge all legacy blocks with state blocks into the final table
 	nano::mdb_merge_iterator<nano::block_hash, nano::block_w_sideband> i (transaction_a, temp_legacy_send_open_receive_change_blocks, temp_state_blocks);
@@ -710,7 +766,10 @@ void nano::mdb_store::upgrade_v18_to_v19 (nano::write_transaction const & transa
 	release_assert (count_pre == count_post);
 
 	version_put (transaction_a, 19);
-	logger.always_log ("Finished upgrading all blocks to new blocks database");
+	if (should_log_a)
+	{
+		logger.always_log ("Finished upgrading all blocks to new blocks database");
+	}
 }
 
 /** Takes a filepath, appends '_backup_<timestamp>' to the end (but before any extension) and saves that file in the same directory */
