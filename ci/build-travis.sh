@@ -73,6 +73,7 @@ cmake \
     -DCMAKE_VERBOSE_MAKEFILE=ON \
     -DBOOST_ROOT=/tmp/boost/ \
     -DNANO_SHARED_BOOST=ON \
+    -DNANO_TIMED_LOCKS=2000 \
     -DQt5_DIR=${qt_dir} \
     -DCI_TEST="1" \
     ${BACKTRACE} \
