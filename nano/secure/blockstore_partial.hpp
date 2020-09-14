@@ -727,6 +727,33 @@ public:
 		});
 	}
 
+	void pending_for_each_par (std::function<void(nano::store_iterator<nano::pending_key, nano::pending_info>, nano::store_iterator<nano::pending_key, nano::pending_info>)> const & action_a) override
+	{
+		// Between 10 and 40 threads, scales well even in low power systems as long as actions are I/O bound
+		unsigned const thread_count = std::max (10u, std::min (40u, 10 * std::thread::hardware_concurrency ()));
+		nano::uint256_t const value_max{ std::numeric_limits<nano::uint256_t>::max () };
+		nano::uint256_t const split = value_max / thread_count;
+		std::vector<std::thread> threads;
+		threads.reserve (thread_count);
+		for (unsigned thread (0); thread < thread_count; ++thread)
+		{
+			nano::uint256_t const start = thread * split;
+			nano::uint256_t const end = (thread + 1) * split;
+			bool const is_last = thread == thread_count - 1;
+
+			threads.emplace_back ([&action_a, this, value_max, start, end, is_last] {
+				auto transaction (this->tx_begin_read ());
+				action_a (
+				this->pending_begin (transaction, nano::pending_key (start, 0)),
+				!is_last ? this->pending_begin (transaction, nano::pending_key (end, value_max)) : this->pending_end ());
+			});
+		}
+		for (auto & thread : threads)
+		{
+			thread.join ();
+		}
+	}
+
 	int const minimum_version{ 14 };
 
 protected:
