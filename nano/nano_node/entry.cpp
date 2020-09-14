@@ -14,6 +14,8 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/program_options.hpp>
 #include <boost/range/adaptor/reversed.hpp>
+#include <boost/unordered_map.hpp>
+#include <boost/unordered_set.hpp>
 
 #include <numeric>
 #include <sstream>
@@ -98,6 +100,7 @@ int main (int argc, char * const * argv)
 		("debug_cemented_block_count", "Displays the number of cemented (confirmed) blocks")
 		("debug_stacktrace", "Display an example stacktrace")
 		("debug_account_versions", "Display the total counts of each version for all accounts (including unpocketed)")
+		("debug_account_versions_old", "Display the total counts of each version for all accounts (including unpocketed)")
 		("debug_unconfirmed_frontiers", "Displays the account, height (sorted), frontier and cemented frontier for all accounts which are not fully confirmed")
 		("validate_blocks,debug_validate_blocks", "Check all blocks for correct hash, signature, work value")
 		("platform", boost::program_options::value<std::string> (), "Defines the <platform> for OpenCL commands")
@@ -1857,6 +1860,102 @@ int main (int argc, char * const * argv)
 			auto inactive_node = nano::default_inactive_node (data_path, vm);
 			auto node = inactive_node->node;
 
+			// Cache the accounts in a collection to make searching quicker against unchecked keys. Group by epoch
+			nano::locked<std::vector<boost::unordered_set<nano::account>>> opened_account_versions_shared (nano::normalized_epoch (nano::epoch::max) + static_cast<uint8_t> (1));
+			node->store.latest_for_each_par ([&opened_account_versions_shared](nano::store_iterator<nano::account, nano::account_info> i, nano::store_iterator<nano::account, nano::account_info> n) {
+				// First cache locally
+				std::vector<boost::unordered_set<nano::account>> opened_account_versions_l (nano::normalized_epoch (nano::epoch::max) + 1);
+				for (; i != n; ++i)
+				{
+					auto const & account (i->first);
+					auto const & account_info (i->second);
+
+					// Epoch 0 will be index 0 for instance
+					auto epoch_idx = nano::normalized_epoch (account_info.epoch ());
+					opened_account_versions_l[epoch_idx].emplace (account);
+				}
+				// Now merge
+				auto opened_account_versions = opened_account_versions_shared.lock ();
+				debug_assert (opened_account_versions->size () == opened_account_versions_l.size ());
+				for (auto idx (0); idx < opened_account_versions_l.size (); ++idx)
+				{
+					auto & accounts = opened_account_versions->at (idx);
+					auto const & accounts_l = opened_account_versions_l.at (idx);
+					accounts.insert (accounts_l.begin (), accounts_l.end ());
+				}
+			});
+
+			// Caching in a single set acccelerates lookup
+			boost::unordered_set<nano::account> opened_accounts;
+			{
+				auto opened_account_versions = opened_account_versions_shared.lock ();
+				for (auto const & account_version : *opened_account_versions)
+				{
+					opened_accounts.insert (account_version.cbegin (), account_version.cend ());
+				}
+			}
+
+			// Iterate all pending blocks and collect the lowest version for each unopened account
+			nano::locked<boost::unordered_map<nano::account, std::underlying_type_t<nano::epoch>>> unopened_highest_pending_shared;
+			node->store.pending_for_each_par ([&unopened_highest_pending_shared, &opened_accounts](nano::store_iterator<nano::pending_key, nano::pending_info> i, nano::store_iterator<nano::pending_key, nano::pending_info> n) {
+				boost::unordered_map<nano::account, std::underlying_type_t<nano::epoch>> unopened_highest_pending_l;
+				for (; i != n; ++i)
+				{
+					nano::pending_key const & key (i->first);
+					nano::pending_info const & info (i->second);
+					auto & account = key.account;
+					auto exists = opened_accounts.find (account) != opened_accounts.end ();
+					if (!exists)
+					{
+						// This is an unopened account, store the lowest pending version
+						auto it = unopened_highest_pending_l.find (key.account);
+						auto epoch = nano::normalized_epoch (info.epoch);
+						auto & existing_or_new = unopened_highest_pending_l[key.account];
+						existing_or_new = std::max (epoch, existing_or_new);
+					}
+				}
+				// Now merge
+				auto unopened_highest_pending = unopened_highest_pending_shared.lock ();
+				for (auto const & [account, epoch] : unopened_highest_pending_l)
+				{
+					auto & existing_or_new = unopened_highest_pending->operator[] (account);
+					existing_or_new = std::max (epoch, existing_or_new);
+				}
+			});
+
+			auto output_account_version_number = [](auto version, auto num_accounts) {
+				std::cout << "Account version " << version << " num accounts: " << num_accounts << "\n";
+			};
+
+			auto opened_account_versions = opened_account_versions_shared.lock ();
+			auto unopened_highest_pending = unopened_highest_pending_shared.lock ();
+
+			// Output total version counts for the opened accounts
+			std::cout << "Opened accounts:\n";
+			for (auto i = 0u; i < opened_account_versions->size (); ++i)
+			{
+				output_account_version_number (i, opened_account_versions->at (i).size ());
+			}
+
+			// Accumulate the version numbers for the highest pending epoch for each unopened account.
+			std::vector<size_t> unopened_account_version_totals (nano::normalized_epoch (nano::epoch::max));
+			for (auto const & pair : *unopened_highest_pending)
+			{
+				++unopened_account_version_totals[pair.second];
+			}
+
+			// Output total version counts for the unopened accounts
+			std::cout << "\nUnopened accounts:\n";
+			for (auto i = 0u; i < unopened_account_version_totals.size (); ++i)
+			{
+				output_account_version_number (i, unopened_account_version_totals[i]);
+			}
+		}
+		else if (vm.count ("debug_account_versions_old"))
+		{
+			auto inactive_node = nano::default_inactive_node (data_path, vm);
+			auto node = inactive_node->node;
+
 			auto transaction (node->store.tx_begin_read ());
 			std::vector<std::unordered_set<nano::account>> opened_account_versions (nano::normalized_epoch (nano::epoch::max) + 1);
 
@@ -1871,6 +1970,13 @@ int main (int argc, char * const * argv)
 				opened_account_versions[epoch_idx].emplace (account);
 			}
 
+			// Caching in a single set acccelerates lookup
+			boost::unordered_set<nano::account> opened_accounts;
+			for (auto const & account_version : opened_account_versions)
+			{
+				opened_accounts.insert (account_version.cbegin (), account_version.cend ());
+			}
+
 			// Iterate all pending blocks and collect the lowest version for each unopened account
 			std::unordered_map<nano::account, std::underlying_type_t<nano::epoch>> unopened_highest_pending;
 			for (auto i (node->store.pending_begin (transaction)), n (node->store.pending_end ()); i != n; ++i)
@@ -1878,9 +1984,7 @@ int main (int argc, char * const * argv)
 				nano::pending_key const & key (i->first);
 				nano::pending_info const & info (i->second);
 				auto & account = key.account;
-				auto exists = std::any_of (opened_account_versions.begin (), opened_account_versions.end (), [&account](auto const & account_version) {
-					return account_version.find (account) != account_version.end ();
-				});
+				auto exists = opened_accounts.find (account) != opened_accounts.end ();
 				if (!exists)
 				{
 					// This is an unopened account, store the lowest pending version
