@@ -36,9 +36,13 @@ bool nano::transport::channel_udp::operator== (nano::transport::channel const & 
 void nano::transport::channel_udp::send_buffer (nano::shared_const_buffer const & buffer_a, std::function<void(boost::system::error_code const &, size_t)> const & callback_a, nano::buffer_drop_policy drop_policy_a)
 {
 	set_last_packet_sent (std::chrono::steady_clock::now ());
-	channels.send (buffer_a, endpoint, [node = std::weak_ptr<nano::node> (channels.node.shared ()), callback_a](boost::system::error_code const & ec, size_t size_a) {
+	channels.send (buffer_a, endpoint, [node = std::weak_ptr<nano::node> (channels.node.shared ()), callback_a, ep = endpoint](boost::system::error_code const & ec, size_t size_a) {
 		if (auto node_l = node.lock ())
 		{
+			if (ec && node_l->config.logging.network_logging ())
+			{
+				node_l->logger.always_log (boost::str (boost::format ("Node %1% UDP Send to endpoint %2%:%3% error: %4%") % node_l->node_seq % ep.address () % ep.port () % ec.message ()));
+			}
 			if (ec == boost::system::errc::host_unreachable)
 			{
 				node_l->stats.inc (nano::stat::type::error, nano::stat::detail::unreachable_host, nano::stat::dir::out);
@@ -303,7 +307,7 @@ void nano::transport::udp_channels::receive ()
 				{
 					if (this->node.config.logging.network_logging ())
 					{
-						this->node.logger.try_log (boost::str (boost::format ("UDP Receive error: %1%") % error.message ()));
+						this->node.logger.always_log (boost::str (boost::format ("Node %1% UDP Receive error from endpoint %2%:%3%: %4%") % this->node.node_seq % data->endpoint.address () % data->endpoint.port () % error.message ()));
 					}
 				}
 				if (!this->stopped)

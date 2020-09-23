@@ -20,9 +20,15 @@ TEST (network, replace_port)
 	auto node0 = system.add_node (node_flags);
 	ASSERT_EQ (0, node0->network.size ());
 	auto node1 (std::make_shared<nano::node> (system.io_ctx, nano::get_available_port (), nano::unique_path (), system.alarm, system.logging, system.work, node_flags));
+	node1->node_seq++;
+	auto wrong_endpoint = nano::endpoint (node1->network.endpoint ().address (), nano::get_available_port ());
+	{
+		auto ep0 = node0->network.endpoint ();
+		auto ep1 = node1->network.endpoint ();
+		std::cerr << "Node0 " << ep0.address () << ":" << ep0.port () << " | Node1 " << ep1.address () << ":" << ep1.port () << " | Node1 wrong " << wrong_endpoint.address () << ":" << wrong_endpoint.port () << std::endl;
+	}
 	node1->start ();
 	system.nodes.push_back (node1);
-	auto wrong_endpoint = nano::endpoint (node1->network.endpoint ().address (), nano::get_available_port ());
 	auto channel0 (node0->network.udp_channels.insert (wrong_endpoint, node1->network_params.protocol.protocol_version));
 	ASSERT_NE (nullptr, channel0);
 	node0->network.udp_channels.modify (channel0, [&node1](std::shared_ptr<nano::transport::channel> channel_a) {
