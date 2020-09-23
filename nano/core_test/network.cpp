@@ -22,7 +22,7 @@ TEST (network, replace_port)
 	auto node1 (std::make_shared<nano::node> (system.io_ctx, nano::get_available_port (), nano::unique_path (), system.alarm, system.logging, system.work, node_flags));
 	node1->start ();
 	system.nodes.push_back (node1);
-	auto wrong_endpoint = nano::endpoint (node1->network.endpoint ().address (), 23000);
+	auto wrong_endpoint = nano::endpoint (node1->network.endpoint ().address (), nano::get_available_port ());
 	auto channel0 (node0->network.udp_channels.insert (wrong_endpoint, node1->network_params.protocol.protocol_version));
 	ASSERT_NE (nullptr, channel0);
 	node0->network.udp_channels.modify (channel0, [&node1](std::shared_ptr<nano::transport::channel> channel_a) {
