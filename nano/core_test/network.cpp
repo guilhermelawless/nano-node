@@ -23,7 +23,7 @@ TEST (network, replace_port)
 	node_flags.disable_ongoing_telemetry_requests = true;
 	node_flags.disable_initial_telemetry_requests = true;
 	nano::node_config node_config (nano::get_available_port (), system.logging);
-	node_config.io_threads = 1;
+	node_config.io_threads = 4;
 	auto node0 = system.add_node (node_config, node_flags);
 	ASSERT_EQ (0, node0->network.size ());
 	node_config.peering_port = nano::get_available_port ();
