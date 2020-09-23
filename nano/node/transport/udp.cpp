@@ -286,7 +286,7 @@ void nano::transport::udp_channels::receive ()
 		release_assert (socket != nullptr);
 		if (node.config.logging.network_packet_logging ())
 		{
-			node.logger.try_log ("Receiving packet");
+			node.logger.always_log ("Node ", node.node_seq, " Receiving packet");
 		}
 
 		auto data (node.network.buffer_container.allocate ());

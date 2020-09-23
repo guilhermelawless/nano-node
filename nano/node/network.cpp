@@ -389,7 +389,7 @@ public:
 	{
 		if (node.config.logging.network_keepalive_logging ())
 		{
-			node.logger.try_log (boost::str (boost::format ("Received keepalive message from %1%") % channel->to_string ()));
+			node.logger.always_log (boost::str (boost::format ("Node %1% Received keepalive message from %2%") % node.node_seq % channel->to_string ()));
 		}
 		node.stats.inc (nano::stat::type::message, nano::stat::detail::keepalive, nano::stat::dir::in);
 		node.network.merge_peers (message_a.peers);
@@ -405,7 +405,7 @@ public:
 	{
 		if (node.config.logging.network_message_logging ())
 		{
-			node.logger.try_log (boost::str (boost::format ("Publish message from %1% for %2%") % channel->to_string () % message_a.block->hash ().to_string ()));
+			node.logger.always_log (boost::str (boost::format ("Node %1% Publish message from %2% for %3%") % node.node_seq % channel->to_string () % message_a.block->hash ().to_string ()));
 		}
 		node.stats.inc (nano::stat::type::message, nano::stat::detail::publish, nano::stat::dir::in);
 		if (!node.block_processor.full ())
@@ -424,11 +424,11 @@ public:
 		{
 			if (!message_a.roots_hashes.empty ())
 			{
-				node.logger.try_log (boost::str (boost::format ("Confirm_req message from %1% for hashes:roots %2%") % channel->to_string () % message_a.roots_string ()));
+				node.logger.always_log (boost::str (boost::format ("Node %1% Confirm_req message from %2% for hashes:roots %3%") % node.node_seq % channel->to_string () % message_a.roots_string ()));
 			}
 			else
 			{
-				node.logger.try_log (boost::str (boost::format ("Confirm_req message from %1% for %2%") % channel->to_string () % message_a.block->hash ().to_string ()));
+				node.logger.always_log (boost::str (boost::format ("Node %1% Confirm_req message from %2% for %3%") % node.node_seq % channel->to_string () % message_a.block->hash ().to_string ()));
 			}
 		}
 		node.stats.inc (nano::stat::type::message, nano::stat::detail::confirm_req, nano::stat::dir::in);
@@ -449,7 +449,7 @@ public:
 	{
 		if (node.config.logging.network_message_logging ())
 		{
-			node.logger.try_log (boost::str (boost::format ("Received confirm_ack message from %1% for %2%sequence %3%") % channel->to_string () % message_a.vote->hashes_string () % std::to_string (message_a.vote->sequence)));
+			node.logger.always_log (boost::str (boost::format ("Node %1% Received confirm_ack message from %2% for %3%sequence %4%") % node.node_seq % channel->to_string () % message_a.vote->hashes_string () % std::to_string (message_a.vote->sequence)));
 		}
 		node.stats.inc (nano::stat::type::message, nano::stat::detail::confirm_ack, nano::stat::dir::in);
 		if (!message_a.vote->account.is_zero ())
@@ -499,7 +499,7 @@ public:
 	{
 		if (node.config.logging.network_telemetry_logging ())
 		{
-			node.logger.try_log (boost::str (boost::format ("Telemetry_req message from %1%") % channel->to_string ()));
+			node.logger.always_log (boost::str (boost::format ("Telemetry_req message from %1%") % channel->to_string ()));
 		}
 		node.stats.inc (nano::stat::type::message, nano::stat::detail::telemetry_req, nano::stat::dir::in);
 
@@ -517,7 +517,7 @@ public:
 	{
 		if (node.config.logging.network_telemetry_logging ())
 		{
-			node.logger.try_log (boost::str (boost::format ("Received telemetry_ack message from %1%") % channel->to_string ()));
+			node.logger.always_log (boost::str (boost::format ("Received telemetry_ack message from %1%") % channel->to_string ()));
 		}
 		node.stats.inc (nano::stat::type::message, nano::stat::detail::telemetry_ack, nano::stat::dir::in);
 		if (node.telemetry)
@@ -654,7 +654,6 @@ void nano::network::random_fill (std::array<nano::endpoint, 8> & target_a) const
 		debug_assert (j < target_a.end ());
 		*j = (*i)->get_endpoint ();
 	}
-	std::cerr << "Peers: " << std::to_string (peers.size ()) << '\n';
 }
 
 void nano::network::fill_keepalive_self (std::array<nano::endpoint, 8> & target_a) const

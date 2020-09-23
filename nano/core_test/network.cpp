@@ -15,17 +15,27 @@ TEST (network, replace_port)
 	nano::system system;
 	nano::node_flags node_flags;
 	node_flags.disable_udp = false;
+	node_flags.disable_rep_crawler = true;
+	node_flags.disable_bootstrap_bulk_pull_server = true;
+	node_flags.disable_bootstrap_bulk_push_client = true;
+	node_flags.disable_bootstrap_listener = true;
+	node_flags.disable_legacy_bootstrap = true;
 	node_flags.disable_ongoing_telemetry_requests = true;
 	node_flags.disable_initial_telemetry_requests = true;
-	auto node0 = system.add_node (node_flags);
+	nano::node_config node_config (nano::get_available_port (), system.logging);
+	node_config.io_threads = 1;
+	auto node0 = system.add_node (node_config, node_flags);
 	ASSERT_EQ (0, node0->network.size ());
-	auto node1 (std::make_shared<nano::node> (system.io_ctx, nano::get_available_port (), nano::unique_path (), system.alarm, system.logging, system.work, node_flags));
+	node_config.peering_port = nano::get_available_port ();
+	node_config.io_threads = 1;
+	auto node1 (std::make_shared<nano::node> (system.io_ctx, nano::unique_path (), system.alarm, node_config, system.work, node_flags));
 	node1->node_seq++;
 	auto wrong_endpoint = nano::endpoint (node1->network.endpoint ().address (), nano::get_available_port ());
 	{
 		auto ep0 = node0->network.endpoint ();
 		auto ep1 = node1->network.endpoint ();
-		std::cerr << "Node0 " << ep0.address () << ":" << ep0.port () << " | Node1 " << ep1.address () << ":" << ep1.port () << " | Node1 wrong " << wrong_endpoint.address () << ":" << wrong_endpoint.port () << std::endl;
+		std::cerr << "\n\nNode0 " << ep0.address () << ":" << ep0.port () << " | Node1 " << ep1.address () << ":" << ep1.port () << " | Node1 wrong " << wrong_endpoint.address () << ":" << wrong_endpoint.port () << "\n\n"
+		          << std::endl;
 	}
 	node1->start ();
 	system.nodes.push_back (node1);
