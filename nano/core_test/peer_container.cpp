@@ -22,6 +22,7 @@ TEST (peer_container, no_recontact)
 	ASSERT_EQ (0, network.size ());
 	network.channel_observer = [&observed_peer](std::shared_ptr<nano::transport::channel>) { ++observed_peer; };
 	node1.network.disconnect_observer = [&observed_disconnect]() { observed_disconnect = true; };
+	auto & node2 (*system.add_node ());
 	auto channel (network.udp_channels.insert (endpoint1, node1.network_params.protocol.protocol_version));
 	ASSERT_EQ (1, network.size ());
 	ASSERT_EQ (channel, network.udp_channels.insert (endpoint1, node1.network_params.protocol.protocol_version));
@@ -173,16 +174,4 @@ TEST (peer_container, reachout)
 	// Make sure we purge old items
 	node1.network.cleanup (std::chrono::steady_clock::now () + std::chrono::seconds (10));
 	ASSERT_FALSE (node1.network.reachout (endpoint1));
-}
-
-TEST (peer_container, depeer)
-{
-	nano::system system (1);
-	nano::endpoint endpoint0 (boost::asio::ip::address_v6::loopback (), nano::get_available_port ());
-	nano::keepalive message;
-	message.header.version_using = 1;
-	auto bytes (message.to_bytes (false));
-	nano::message_buffer buffer = { bytes->data (), bytes->size (), endpoint0 };
-	system.nodes[0]->network.udp_channels.receive_action (&buffer);
-	ASSERT_EQ (1, system.nodes[0]->stats.count (nano::stat::type::udp, nano::stat::detail::outdated_version));
 }

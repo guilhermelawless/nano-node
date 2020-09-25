@@ -1,7 +1,6 @@
 #include <nano/crypto_lib/random_pool.hpp>
 #include <nano/node/common.hpp>
 #include <nano/node/testing.hpp>
-#include <nano/node/transport/udp.hpp>
 
 #include <boost/property_tree/json_parser.hpp>
 
@@ -22,13 +21,13 @@ std::string nano::error_system_messages::message (int ev) const
 	return "Invalid error code";
 }
 
-std::shared_ptr<nano::node> nano::system::add_node (nano::node_flags node_flags_a, nano::transport::transport_type type_a)
+std::shared_ptr<nano::node> nano::system::add_node (nano::node_flags node_flags_a)
 {
-	return add_node (nano::node_config (nano::get_available_port (), logging), node_flags_a, type_a);
+	return add_node (nano::node_config (nano::get_available_port (), logging), node_flags_a);
 }
 
 /** Returns the node added. */
-std::shared_ptr<nano::node> nano::system::add_node (nano::node_config const & node_config_a, nano::node_flags node_flags_a, nano::transport::transport_type type_a)
+std::shared_ptr<nano::node> nano::system::add_node (nano::node_config const & node_config_a, nano::node_flags node_flags_a)
 {
 	auto node (std::make_shared<nano::node> (io_ctx, nano::unique_path (), alarm, node_config_a, work, node_flags_a, node_sequence++));
 	debug_assert (!node->init_error ());
@@ -50,23 +49,14 @@ std::shared_ptr<nano::node> nano::system::add_node (nano::node_config const & no
 			auto starting2 (node2->network.size ());
 			size_t starting_listener2 (node2->bootstrap.realtime_count);
 			decltype (starting2) new2;
-			if (type_a == nano::transport::transport_type::tcp)
-			{
-				(*j)->network.merge_peer ((*i)->network.endpoint ());
-			}
-			else
-			{
-				// UDP connection
-				auto channel (std::make_shared<nano::transport::channel_udp> ((*j)->network.udp_channels, (*i)->network.endpoint (), node1->network_params.protocol.protocol_version));
-				(*j)->network.send_keepalive (channel);
-			}
+			(*j)->network.merge_peer ((*i)->network.endpoint ());
 			do
 			{
 				poll ();
 				new1 = node1->network.size ();
 				new2 = node2->network.size ();
 			} while (new1 == starting1 || new2 == starting2);
-			if (type_a == nano::transport::transport_type::tcp && node_config_a.tcp_incoming_connections_max != 0 && !node_flags_a.disable_tcp_realtime)
+			if (node_config_a.tcp_incoming_connections_max != 0)
 			{
 				// Wait for initial connection finish
 				decltype (starting_listener1) new_listener1;

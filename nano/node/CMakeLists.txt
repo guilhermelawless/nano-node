@@ -132,8 +132,6 @@ add_library (node
 	transport/tcp.cpp
 	transport/transport.hpp
 	transport/transport.cpp
-	transport/udp.hpp
-	transport/udp.cpp
 	vote_processor.hpp
 	vote_processor.cpp
 	voting.hpp

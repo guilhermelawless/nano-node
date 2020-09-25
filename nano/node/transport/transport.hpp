@@ -31,9 +31,8 @@ namespace transport
 	enum class transport_type : uint8_t
 	{
 		undefined = 0,
-		udp = 1,
-		tcp = 2,
-		loopback = 3
+		loopback = 1,
+		tcp = 2
 	};
 	class channel
 	{

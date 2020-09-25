@@ -288,11 +288,7 @@ node_seq (seq)
 			}
 		});
 		observers.endpoint.add ([this](std::shared_ptr<nano::transport::channel> channel_a) {
-			if (channel_a->get_type () == nano::transport::transport_type::udp)
-			{
-				this->network.send_keepalive (channel_a);
-			}
-			else
+			if (channel_a->get_type () == nano::transport::transport_type::tcp)
 			{
 				this->network.send_keepalive_self (channel_a);
 			}
@@ -659,11 +655,9 @@ void nano::node::start ()
 	ongoing_rep_calculation ();
 	ongoing_peer_store ();
 	ongoing_online_weight_calculation_queue ();
-	bool tcp_enabled (false);
-	if (config.tcp_incoming_connections_max > 0 && !(flags.disable_bootstrap_listener && flags.disable_tcp_realtime))
+	if (config.tcp_incoming_connections_max > 0 && !flags.disable_bootstrap_listener)
 	{
 		bootstrap.start ();
-		tcp_enabled = true;
 	}
 	if (!flags.disable_backup)
 	{
@@ -678,8 +672,8 @@ void nano::node::start ()
 			this_l->bootstrap_wallet ();
 		});
 	}
-	// Start port mapping if external address is not defined and TCP or UDP ports are enabled
-	if (config.external_address == boost::asio::ip::address_v6{}.any ().to_string () && (tcp_enabled || !flags.disable_udp))
+	// Start port mapping if external address is not defined
+	if (config.external_address == boost::asio::ip::address_v6{}.any ().to_string () && !flags.disable_upnp)
 	{
 		port_mapping.start ();
 	}
@@ -866,7 +860,6 @@ void nano::node::ongoing_store_flush ()
 void nano::node::ongoing_peer_store ()
 {
 	bool stored (network.tcp_channels.store_all (true));
-	network.udp_channels.store_all (!stored);
 	std::weak_ptr<nano::node> node_w (shared_from_this ());
 	alarm.add (std::chrono::steady_clock::now () + network_params.node.peer_interval, [node_w]() {
 		if (auto node_l = node_w.lock ())
@@ -1717,7 +1710,7 @@ nano::node_flags const & nano::inactive_node_flag_defaults ()
 	node_flags.generate_cache.account_count = false;
 	node_flags.generate_cache.epoch_2 = false;
 	node_flags.disable_bootstrap_listener = true;
-	node_flags.disable_tcp_realtime = true;
+	node_flags.disable_upnp = true;
 	return node_flags;
 }
 

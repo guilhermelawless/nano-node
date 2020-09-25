@@ -12,11 +12,9 @@ class node;
 class mapping_protocol
 {
 public:
-	/** Protocol name; TPC or UDP */
-	char const * name;
-	boost::asio::ip::address_v4 external_address;
-	uint16_t external_port;
-	bool enabled;
+	char const * name{ "TCP" };
+	boost::asio::ip::address_v4 external_address{ boost::asio::ip::address_v4::any () };
+	uint16_t external_port{ 0 };
 };
 
 /** Collection of discovered UPnP devices and state*/
@@ -57,7 +55,7 @@ private:
 	nano::node & node;
 	nano::network_params network_params;
 	boost::asio::ip::address_v4 address;
-	std::array<mapping_protocol, 2> protocols;
+	mapping_protocol protocol;
 	uint64_t check_count{ 0 };
 	std::atomic<bool> on{ false };
 	std::mutex mutex;

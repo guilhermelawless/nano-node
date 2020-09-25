@@ -212,7 +212,7 @@ TEST (active_transactions, inactive_votes_cache_fork)
 	             .build_shared ();
 	auto vote (std::make_shared<nano::vote> (nano::dev_genesis_key.pub, nano::dev_genesis_key.prv, 0, std::vector<nano::block_hash> (1, send1->hash ())));
 	node.vote_processor.vote (vote, std::make_shared<nano::transport::channel_loopback> (node));
-	auto channel1 (node.network.udp_channels.create (node.network.endpoint ()));
+	auto channel1 (std::make_shared<nano::transport::channel_loopback> (node));
 	ASSERT_TIMELY (5s, node.active.inactive_votes_cache_size () == 1);
 	node.network.process_message (nano::publish (send2), channel1);
 	node.block_processor.flush ();

@@ -13,11 +13,11 @@ TEST (confirmation_solicitor, batches)
 	nano::node_flags node_flags;
 	node_flags.disable_request_loop = true;
 	node_flags.disable_rep_crawler = true;
-	node_flags.disable_udp = false;
 	auto & node1 = *system.add_node (node_flags);
 	node_flags.disable_request_loop = true;
 	auto & node2 = *system.add_node (node_flags);
-	auto channel1 (node2.network.udp_channels.create (node1.network.endpoint ()));
+	auto channel1 (node2.network.find_channel (node1.network.endpoint ()));
+	ASSERT_NE (nullptr, channel1);
 	// Solicitor will only solicit from this representative
 	nano::representative representative (nano::dev_genesis_key.pub, nano::genesis_amount, channel1);
 	std::vector<nano::representative> representatives{ representative };
@@ -59,10 +59,10 @@ TEST (confirmation_solicitor, different_hash)
 	nano::node_flags node_flags;
 	node_flags.disable_request_loop = true;
 	node_flags.disable_rep_crawler = true;
-	node_flags.disable_udp = false;
 	auto & node1 = *system.add_node (node_flags);
 	auto & node2 = *system.add_node (node_flags);
-	auto channel1 (node2.network.udp_channels.create (node1.network.endpoint ()));
+	auto channel1 (node2.network.find_channel (node1.network.endpoint ()));
+	ASSERT_NE (nullptr, channel1);
 	// Solicitor will only solicit from this representative
 	nano::representative representative (nano::dev_genesis_key.pub, nano::genesis_amount, channel1);
 	std::vector<nano::representative> representatives{ representative };
@@ -93,16 +93,16 @@ TEST (confirmation_solicitor, bypass_max_requests_cap)
 	nano::node_flags node_flags;
 	node_flags.disable_request_loop = true;
 	node_flags.disable_rep_crawler = true;
-	node_flags.disable_udp = false;
 	auto & node1 = *system.add_node (node_flags);
 	auto & node2 = *system.add_node (node_flags);
 	nano::confirmation_solicitor solicitor (node2.network, node2.network_params.network);
 	std::vector<nano::representative> representatives;
 	auto max_representatives = std::max<size_t> (solicitor.max_election_requests, solicitor.max_election_broadcasts);
 	representatives.reserve (max_representatives + 1);
+	auto channel (node2.network.find_channel (node1.network.endpoint ()));
+	ASSERT_NE (nullptr, channel);
 	for (auto i (0); i < max_representatives + 1; ++i)
 	{
-		auto channel (node2.network.udp_channels.create (node1.network.endpoint ()));
 		nano::representative representative (nano::account (i), i, channel);
 		representatives.push_back (representative);
 	}

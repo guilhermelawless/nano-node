@@ -59,7 +59,7 @@ public:
 	std::chrono::steady_clock::time_point arrival;
 	nano::block_hash hash;
 };
-// This class tracks blocks that are probably live because they arrived in a UDP packet
+// This class tracks blocks that are probably live
 // This gives a fairly reliable way to differentiate between blocks being inserted via bootstrap or new, live blocks.
 class block_arrival final
 {

@@ -53,7 +53,6 @@ public:
 	size_t size () const;
 
 	friend class telemetry_remove_peer_different_genesis_Test;
-	friend class telemetry_remove_peer_different_genesis_udp_Test;
 	friend class telemetry_remove_peer_invalid_signature_Test;
 	friend class peer_exclusion_validate_Test;
 };

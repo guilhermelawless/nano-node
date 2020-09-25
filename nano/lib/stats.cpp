@@ -405,17 +405,11 @@ std::string nano::stat::type_to_string (uint32_t key)
 		case nano::stat::type::tcp:
 			res = "tcp";
 			break;
-		case nano::stat::type::udp:
-			res = "udp";
-			break;
 		case nano::stat::type::peering:
 			res = "peering";
 			break;
 		case nano::stat::type::rollback:
 			res = "rollback";
-			break;
-		case nano::stat::type::traffic_udp:
-			res = "traffic_udp";
 			break;
 		case nano::stat::type::traffic_tcp:
 			res = "traffic_tcp";
@@ -657,36 +651,6 @@ std::string nano::stat::detail_to_string (uint32_t key)
 			break;
 		case nano::stat::detail::unreachable_host:
 			res = "unreachable_host";
-			break;
-		case nano::stat::detail::invalid_header:
-			res = "invalid_header";
-			break;
-		case nano::stat::detail::invalid_message_type:
-			res = "invalid_message_type";
-			break;
-		case nano::stat::detail::invalid_keepalive_message:
-			res = "invalid_keepalive_message";
-			break;
-		case nano::stat::detail::invalid_publish_message:
-			res = "invalid_publish_message";
-			break;
-		case nano::stat::detail::invalid_confirm_req_message:
-			res = "invalid_confirm_req_message";
-			break;
-		case nano::stat::detail::invalid_confirm_ack_message:
-			res = "invalid_confirm_ack_message";
-			break;
-		case nano::stat::detail::invalid_node_id_handshake_message:
-			res = "invalid_node_id_handshake_message";
-			break;
-		case nano::stat::detail::invalid_telemetry_req_message:
-			res = "invalid_telemetry_req_message";
-			break;
-		case nano::stat::detail::invalid_telemetry_ack_message:
-			res = "invalid_telemetry_ack_message";
-			break;
-		case nano::stat::detail::outdated_version:
-			res = "outdated_version";
 			break;
 		case nano::stat::detail::blocks_confirmed:
 			res = "blocks_confirmed";

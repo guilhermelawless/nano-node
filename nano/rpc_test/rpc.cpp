@@ -9,6 +9,7 @@
 #include <nano/node/testing.hpp>
 #include <nano/rpc/rpc.hpp>
 #include <nano/rpc/rpc_request_processor.hpp>
+#include <nano/test_common/network.hpp>
 #include <nano/test_common/telemetry.hpp>
 #include <nano/test_common/testutil.hpp>
 
@@ -2028,7 +2029,7 @@ TEST (rpc, keepalive)
 	auto port (boost::str (boost::format ("%1%") % node1->network.endpoint ().port ()));
 	request.put ("address", address);
 	request.put ("port", port);
-	ASSERT_EQ (nullptr, node0->network.udp_channels.channel (node1->network.endpoint ()));
+	ASSERT_EQ (nullptr, node0->network.find_channel (node1->network.endpoint ()));
 	ASSERT_EQ (0, node0->network.size ());
 	test_response response (request, rpc.config.port, system.io_ctx);
 	ASSERT_TIMELY (5s, response.status != 0);
@@ -2304,8 +2305,6 @@ TEST (rpc, peers)
 	auto port = nano::get_available_port ();
 	system.add_node (nano::node_config (port, system.logging));
 	scoped_io_thread_name_change scoped_thread_name_io;
-	nano::endpoint endpoint (boost::asio::ip::make_address_v6 ("fc00::1"), 4000);
-	node->network.udp_channels.insert (endpoint, node->network_params.protocol.protocol_version);
 	nano::node_rpc_config node_rpc_config;
 	nano::ipc::ipc_server ipc_server (*node, node_rpc_config);
 	nano::rpc_config rpc_config (nano::get_available_port (), true);
@@ -2319,12 +2318,8 @@ TEST (rpc, peers)
 	ASSERT_TIMELY (5s, response.status != 0);
 	ASSERT_EQ (200, response.status);
 	auto & peers_node (response.json.get_child ("peers"));
-	ASSERT_EQ (2, peers_node.size ());
+	ASSERT_EQ (1, peers_node.size ());
 	ASSERT_EQ (std::to_string (node->network_params.protocol.protocol_version), peers_node.get<std::string> ((boost::format ("[::1]:%1%") % port).str ()));
-	// Previously "[::ffff:80.80.80.80]:4000", but IPv4 address cause "No such node thrown in the test body" issue with peers_node.get
-	std::stringstream endpoint_text;
-	endpoint_text << endpoint;
-	ASSERT_EQ (std::to_string (node->network_params.protocol.protocol_version), peers_node.get<std::string> (endpoint_text.str ()));
 }
 
 TEST (rpc, peers_node_id)
@@ -2334,8 +2329,6 @@ TEST (rpc, peers_node_id)
 	auto port = nano::get_available_port ();
 	system.add_node (nano::node_config (port, system.logging));
 	scoped_io_thread_name_change scoped_thread_name_io;
-	nano::endpoint endpoint (boost::asio::ip::make_address_v6 ("fc00::1"), 4000);
-	node->network.udp_channels.insert (endpoint, node->network_params.protocol.protocol_version);
 	nano::node_rpc_config node_rpc_config;
 	nano::ipc::ipc_server ipc_server (*node, node_rpc_config);
 	nano::rpc_config rpc_config (nano::get_available_port (), true);
@@ -2350,15 +2343,10 @@ TEST (rpc, peers_node_id)
 	ASSERT_TIMELY (5s, response.status != 0);
 	ASSERT_EQ (200, response.status);
 	auto & peers_node (response.json.get_child ("peers"));
-	ASSERT_EQ (2, peers_node.size ());
+	ASSERT_EQ (1, peers_node.size ());
 	auto tree1 (peers_node.get_child ((boost::format ("[::1]:%1%") % port).str ()));
 	ASSERT_EQ (std::to_string (node->network_params.protocol.protocol_version), tree1.get<std::string> ("protocol_version"));
 	ASSERT_EQ (system.nodes[1]->node_id.pub.to_node_id (), tree1.get<std::string> ("node_id"));
-	std::stringstream endpoint_text;
-	endpoint_text << endpoint;
-	auto tree2 (peers_node.get_child (endpoint_text.str ()));
-	ASSERT_EQ (std::to_string (node->network_params.protocol.protocol_version), tree2.get<std::string> ("protocol_version"));
-	ASSERT_EQ ("", tree2.get<std::string> ("node_id"));
 }
 
 TEST (rpc, pending)
@@ -7305,7 +7293,8 @@ TEST (rpc, account_lazy_start)
 	node_config.ipc_config.transport_tcp.enabled = true;
 	node_config.ipc_config.transport_tcp.port = nano::get_available_port ();
 	auto node2 = system.add_node (node_config, node_flags);
-	node2->network.udp_channels.insert (node1->network.endpoint (), node1->network_params.protocol.protocol_version);
+	ASSERT_EQ (1, node1->network.size ());
+	ASSERT_EQ (1, node2->network.size ());
 	nano::node_rpc_config node_rpc_config;
 	nano::ipc::ipc_server ipc_server (*node2, node_rpc_config);
 	nano::rpc_config rpc_config (nano::get_available_port (), true);
@@ -7645,7 +7634,8 @@ TEST (rpc, telemetry_self)
 	rpc.start ();
 
 	// Just to have peer count at 1
-	node1.network.udp_channels.insert (nano::endpoint (boost::asio::ip::make_address_v6 ("::1"), nano::get_available_port ()), 0);
+	system.add_node ();
+	ASSERT_EQ (1, node1.network.size ());
 
 	boost::property_tree::ptree request;
 	request.put ("action", "telemetry");

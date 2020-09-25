@@ -117,7 +117,7 @@ namespace transport
 		// Connection start
 		void start_tcp (nano::endpoint const &, std::function<void(std::shared_ptr<nano::transport::channel>)> const & = nullptr);
 		void start_tcp_receive_node_id (std::shared_ptr<nano::transport::channel_tcp>, nano::endpoint const &, std::shared_ptr<std::vector<uint8_t>>, std::function<void(std::shared_ptr<nano::transport::channel>)> const &);
-		void udp_fallback (nano::endpoint const &, std::function<void(std::shared_ptr<nano::transport::channel>)> const &);
+		void erase_attempt (nano::endpoint const &);
 		void push_node_id_handshake_socket (std::shared_ptr<nano::socket> const & socket_a);
 		void remove_node_id_handshake_socket (std::shared_ptr<nano::socket> const & socket_a);
 		bool node_id_handhake_sockets_empty () const;

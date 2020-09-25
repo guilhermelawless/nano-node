@@ -274,14 +274,6 @@ void nano::rep_crawler::cleanup_reps ()
 				equal = true;
 			}
 		}
-		else if (i->get_type () == nano::transport::transport_type::udp)
-		{
-			auto find_channel (node.network.udp_channels.channel (i->get_endpoint ()));
-			if (find_channel != nullptr && *find_channel == *static_cast<nano::transport::channel_udp *> (i.get ()))
-			{
-				equal = true;
-			}
-		}
 		if (!equal)
 		{
 			nano::lock_guard<std::mutex> lock (probable_reps_mutex);

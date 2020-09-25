@@ -660,10 +660,10 @@ TEST (confirmation_height, conflict_rollback_cemented)
 		nano::keypair key2;
 		auto send2 (std::make_shared<nano::send_block> (genesis.hash (), key2.pub, nano::genesis_amount - 100, nano::dev_genesis_key.prv, nano::dev_genesis_key.pub, *system.work.generate (genesis.hash ())));
 		nano::publish publish2 (send2);
-		auto channel1 (node1->network.udp_channels.create (node1->network.endpoint ()));
+		auto channel1 (std::make_shared<nano::transport::channel_loopback> (*node1));
 		node1->network.process_message (publish1, channel1);
 		node1->block_processor.flush ();
-		auto channel2 (node2->network.udp_channels.create (node1->network.endpoint ()));
+		auto channel2 (std::make_shared<nano::transport::channel_loopback> (*node2));
 		node2->network.process_message (publish2, channel2);
 		node2->block_processor.flush ();
 		ASSERT_EQ (1, node1->active.size ());

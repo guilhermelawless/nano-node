@@ -180,7 +180,6 @@ public:
 	/** Primary statistics type */
 	enum class type : uint8_t
 	{
-		traffic_udp,
 		traffic_tcp,
 		error,
 		message,
@@ -194,7 +193,6 @@ public:
 		peering,
 		ipc,
 		tcp,
-		udp,
 		confirmation_height,
 		confirmation_observer,
 		drop,
@@ -280,20 +278,6 @@ public:
 		election_difficulty_update,
 		election_drop,
 		election_restart,
-
-		// udp
-		blocking,
-		overflow,
-		invalid_header,
-		invalid_message_type,
-		invalid_keepalive_message,
-		invalid_publish_message,
-		invalid_confirm_req_message,
-		invalid_confirm_ack_message,
-		invalid_node_id_handshake_message,
-		invalid_telemetry_req_message,
-		invalid_telemetry_ack_message,
-		outdated_version,
 
 		// tcp
 		tcp_accept_success,

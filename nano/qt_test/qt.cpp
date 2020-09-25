@@ -33,16 +33,21 @@ TEST (wallet, status)
 {
 	nano_qt::eventloop_processor processor;
 	nano::system system (1);
-	auto wallet_l (system.nodes[0]->wallets.create (nano::random_wallet_id ()));
+	auto node0 = system.nodes[0];
+	auto wallet_l (node0->wallets.create (nano::random_wallet_id ()));
 	nano::keypair key;
 	wallet_l->insert_adhoc (key.prv);
-	auto wallet (std::make_shared<nano_qt::wallet> (*test_application, processor, *system.nodes[0], wallet_l, key.pub));
+	auto wallet (std::make_shared<nano_qt::wallet> (*test_application, processor, *node0, wallet_l, key.pub));
 	wallet->start ();
 	auto wallet_has = [wallet](nano_qt::status_types status_ty) {
 		return wallet->active_status.active.find (status_ty) != wallet->active_status.active.end ();
 	};
+	auto node1 = std::make_shared<nano::node> (system.io_ctx, nano::get_available_port (), nano::unique_path (), system.alarm, system.logging, system.work);
+	ASSERT_FALSE (node1->init_error ());
+	system.nodes.push_back (node1);
+	node1->start ();
 	ASSERT_EQ ("Status: Disconnected, Blocks: 1", wallet->status->text ().toStdString ());
-	system.nodes[0]->network.udp_channels.insert (nano::endpoint (boost::asio::ip::address_v6::loopback (), 10000), 0);
+	node0->network.tcp_channels.start_tcp (nano::endpoint (boost::asio::ip::address_v6::loopback (), 10000), 0);
 	// Because of the wallet "vulnerable" message, this won't be the message displayed.
 	// However, it will still be part of the status set.
 	ASSERT_FALSE (wallet_has (nano_qt::status_types::synchronizing));
@@ -52,7 +57,7 @@ TEST (wallet, status)
 		test_application->processEvents ();
 		ASSERT_NO_ERROR (system.poll ());
 	}
-	system.nodes[0]->network.cleanup (std::chrono::steady_clock::now () + std::chrono::seconds (5));
+	node0->network.cleanup (std::chrono::steady_clock::now () + std::chrono::seconds (5));
 	while (wallet_has (nano_qt::status_types::synchronizing))
 	{
 		test_application->processEvents ();

@@ -2,14 +2,12 @@
 #include <nano/node/portmapping.hpp>
 
 #include <boost/format.hpp>
-#include <boost/range/adaptor/filtered.hpp>
 
 #include <upnpcommands.h>
 #include <upnperrors.h>
 
 nano::port_mapping::port_mapping (nano::node & node_a) :
 node (node_a),
-protocols ({ { { "TCP", boost::asio::ip::address_v4::any (), 0, true }, { "UDP", boost::asio::ip::address_v4::any (), 0, !node_a.flags.disable_udp } } })
 {
 }
 
@@ -62,12 +60,9 @@ nano::endpoint nano::port_mapping::external_address ()
 {
 	nano::endpoint result_l (boost::asio::ip::address_v6{}, 0);
 	nano::lock_guard<std::mutex> guard_l (mutex);
-	for (auto & protocol : protocols | boost::adaptors::filtered ([](auto const & p) { return p.enabled; }))
+	if (protocol.external_port != 0)
 	{
-		if (protocol.external_port != 0)
-		{
-			result_l = nano::endpoint (protocol.external_address, protocol.external_port);
-		}
+		result_l = nano::endpoint (protocol.external_address, protocol.external_port);
 	}
 	return result_l;
 }
@@ -82,30 +77,27 @@ void nano::port_mapping::refresh_mapping ()
 		auto config_port_l (get_config_port (node_port_l));
 
 		// We don't map the RPC port because, unless RPC authentication was added, this would almost always be a security risk
-		for (auto & protocol : protocols | boost::adaptors::filtered ([](auto const & p) { return p.enabled; }))
+		auto const lease_duration = std::chrono::duration_cast<std::chrono::seconds> (network_params.portmapping.lease_duration);
+		auto upnp_description = std::string ("Nano Node (") + network_params.network.get_current_network_as_string () + ")";
+		auto add_port_mapping_error_l (UPNP_AddPortMapping (upnp.urls.controlURL, upnp.data.first.servicetype, config_port_l.c_str (), node_port_l.c_str (), address.to_string ().c_str (), upnp_description.c_str (), protocol.name, nullptr, std::to_string (lease_duration.count ()).c_str ()));
+		if (node.config.logging.upnp_details_logging ())
 		{
-			auto const lease_duration = std::chrono::duration_cast<std::chrono::seconds> (network_params.portmapping.lease_duration);
-			auto upnp_description = std::string ("Nano Node (") + network_params.network.get_current_network_as_string () + ")";
-			auto add_port_mapping_error_l (UPNP_AddPortMapping (upnp.urls.controlURL, upnp.data.first.servicetype, config_port_l.c_str (), node_port_l.c_str (), address.to_string ().c_str (), upnp_description.c_str (), protocol.name, nullptr, std::to_string (lease_duration.count ()).c_str ()));
-			if (node.config.logging.upnp_details_logging ())
-			{
-				node.logger.always_log (boost::str (boost::format ("UPnP %1% port mapping response: %2%") % protocol.name % add_port_mapping_error_l));
-			}
-			if (add_port_mapping_error_l == UPNPCOMMAND_SUCCESS)
-			{
-				protocol.external_port = static_cast<uint16_t> (std::atoi (config_port_l.data ()));
-				node.logger.always_log (boost::str (boost::format ("UPnP %1%:%2% mapped to %3%") % protocol.external_address % config_port_l % node_port_l));
+			node.logger.always_log (boost::str (boost::format ("UPnP %1% port mapping response: %2%") % protocol.name % add_port_mapping_error_l));
+		}
+		if (add_port_mapping_error_l == UPNPCOMMAND_SUCCESS)
+		{
+			protocol.external_port = static_cast<uint16_t> (std::atoi (config_port_l.data ()));
+			node.logger.always_log (boost::str (boost::format ("UPnP %1%:%2% mapped to %3%") % protocol.external_address % config_port_l % node_port_l));
 
-				// Refresh mapping before the leasing ends
-				node.alarm.add (std::chrono::steady_clock::now () + lease_duration - std::chrono::seconds (10), [node_l = node.shared ()]() {
-					node_l->port_mapping.refresh_mapping ();
-				});
-			}
-			else
-			{
-				protocol.external_port = 0;
-				node.logger.always_log (boost::str (boost::format ("UPnP failed %1%: %2%") % add_port_mapping_error_l % strupnperror (add_port_mapping_error_l)));
-			}
+			// Refresh mapping before the leasing ends
+			node.alarm.add (std::chrono::steady_clock::now () + lease_duration - std::chrono::seconds (10), [node_l = node.shared ()]() {
+				node_l->port_mapping.refresh_mapping ();
+			});
+		}
+		else
+		{
+			protocol.external_port = 0;
+			node.logger.always_log (boost::str (boost::format ("UPnP failed %1%: %2%") % add_port_mapping_error_l % strupnperror (add_port_mapping_error_l)));
 		}
 	}
 }
@@ -118,39 +110,36 @@ bool nano::port_mapping::check_mapping ()
 	nano::lock_guard<std::mutex> guard_l (mutex);
 	auto node_port_l (std::to_string (node.network.endpoint ().port ()));
 	auto config_port_l (get_config_port (node_port_l));
-	for (auto & protocol : protocols | boost::adaptors::filtered ([](auto const & p) { return p.enabled; }))
+	std::array<char, 64> int_client_l;
+	std::array<char, 6> int_port_l;
+	std::array<char, 16> remaining_mapping_duration_l;
+	remaining_mapping_duration_l.fill (0);
+	auto verify_port_mapping_error_l (UPNP_GetSpecificPortMappingEntry (upnp.urls.controlURL, upnp.data.first.servicetype, config_port_l.c_str (), protocol.name, nullptr, int_client_l.data (), int_port_l.data (), nullptr, nullptr, remaining_mapping_duration_l.data ()));
+	if (verify_port_mapping_error_l == UPNPCOMMAND_SUCCESS)
 	{
-		std::array<char, 64> int_client_l;
-		std::array<char, 6> int_port_l;
-		std::array<char, 16> remaining_mapping_duration_l;
-		remaining_mapping_duration_l.fill (0);
-		auto verify_port_mapping_error_l (UPNP_GetSpecificPortMappingEntry (upnp.urls.controlURL, upnp.data.first.servicetype, config_port_l.c_str (), protocol.name, nullptr, int_client_l.data (), int_port_l.data (), nullptr, nullptr, remaining_mapping_duration_l.data ()));
-		if (verify_port_mapping_error_l == UPNPCOMMAND_SUCCESS)
-		{
-			result_l = false;
-		}
-		else
-		{
-			node.logger.always_log (boost::str (boost::format ("UPNP_GetSpecificPortMappingEntry failed %1%: %2%") % verify_port_mapping_error_l % strupnperror (verify_port_mapping_error_l)));
-		}
-		std::array<char, 64> external_address_l;
-		external_address_l.fill (0);
-		auto external_ip_error_l (UPNP_GetExternalIPAddress (upnp.urls.controlURL, upnp.data.first.servicetype, external_address_l.data ()));
-		if (external_ip_error_l == UPNPCOMMAND_SUCCESS)
-		{
-			boost::system::error_code ec;
-			protocol.external_address = boost::asio::ip::address_v4::from_string (external_address_l.data (), ec);
-			protocol.external_port = static_cast<uint16_t> (std::atoi (config_port_l.data ()));
-		}
-		else
-		{
-			protocol.external_address = boost::asio::ip::address_v4::any ();
-			node.logger.always_log (boost::str (boost::format ("UPNP_GetExternalIPAddress failed %1%: %2%") % verify_port_mapping_error_l % strupnperror (verify_port_mapping_error_l)));
-		}
-		if (node.config.logging.upnp_details_logging ())
-		{
-			node.logger.always_log (boost::str (boost::format ("UPnP %1% mapping verification response: %2%, external ip response: %3%, external ip: %4%, internal ip: %5%, lease: %6%") % protocol.name % verify_port_mapping_error_l % external_ip_error_l % external_address_l.data () % address.to_string () % remaining_mapping_duration_l.data ()));
-		}
+		result_l = false;
+	}
+	else
+	{
+		node.logger.always_log (boost::str (boost::format ("UPNP_GetSpecificPortMappingEntry failed %1%: %2%") % verify_port_mapping_error_l % strupnperror (verify_port_mapping_error_l)));
+	}
+	std::array<char, 64> external_address_l;
+	external_address_l.fill (0);
+	auto external_ip_error_l (UPNP_GetExternalIPAddress (upnp.urls.controlURL, upnp.data.first.servicetype, external_address_l.data ()));
+	if (external_ip_error_l == UPNPCOMMAND_SUCCESS)
+	{
+		boost::system::error_code ec;
+		protocol.external_address = boost::asio::ip::address_v4::from_string (external_address_l.data (), ec);
+		protocol.external_port = static_cast<uint16_t> (std::atoi (config_port_l.data ()));
+	}
+	else
+	{
+		protocol.external_address = boost::asio::ip::address_v4::any ();
+		node.logger.always_log (boost::str (boost::format ("UPNP_GetExternalIPAddress failed %1%: %2%") % verify_port_mapping_error_l % strupnperror (verify_port_mapping_error_l)));
+	}
+	if (node.config.logging.upnp_details_logging ())
+	{
+		node.logger.always_log (boost::str (boost::format ("UPnP %1% mapping verification response: %2%, external ip response: %3%, external ip: %4%, internal ip: %5%, lease: %6%") % protocol.name % verify_port_mapping_error_l % external_ip_error_l % external_address_l.data () % address.to_string () % remaining_mapping_duration_l.data ()));
 	}
 	return result_l;
 }
@@ -189,20 +178,17 @@ void nano::port_mapping::stop ()
 {
 	on = false;
 	nano::lock_guard<std::mutex> guard_l (mutex);
-	for (auto & protocol : protocols | boost::adaptors::filtered ([](auto const & p) { return p.enabled; }))
+	if (protocol.external_port != 0)
 	{
-		if (protocol.external_port != 0)
+		// Be a good citizen for the router and shut down our mapping
+		auto delete_error_l (UPNP_DeletePortMapping (upnp.urls.controlURL, upnp.data.first.servicetype, std::to_string (protocol.external_port).c_str (), protocol.name, address.to_string ().c_str ()));
+		if (delete_error_l)
 		{
-			// Be a good citizen for the router and shut down our mapping
-			auto delete_error_l (UPNP_DeletePortMapping (upnp.urls.controlURL, upnp.data.first.servicetype, std::to_string (protocol.external_port).c_str (), protocol.name, address.to_string ().c_str ()));
-			if (delete_error_l)
-			{
-				node.logger.always_log (boost::str (boost::format ("UPnP shutdown %1% port mapping response: %2%") % protocol.name % delete_error_l));
-			}
-			else
-			{
-				node.logger.always_log (boost::str (boost::format ("UPnP shutdown %1% port mapping successful: %2%:%3%") % protocol.name % protocol.external_address % protocol.external_port));
-			}
+			node.logger.always_log (boost::str (boost::format ("UPnP shutdown %1% port mapping response: %2%") % protocol.name % delete_error_l));
+		}
+		else
+		{
+			node.logger.always_log (boost::str (boost::format ("UPnP shutdown %1% port mapping successful: %2%:%3%") % protocol.name % protocol.external_address % protocol.external_port));
 		}
 	}
 }
